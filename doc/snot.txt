@@ -1,0 +1,159 @@
+*snot.txt*                                      Simple dated markdown notes
+
+==============================================================================
+CONTENTS                                                       *snot-contents*
+
+  1. Introduction ................................ |snot-introduction|
+  2. Configuration ............................... |snot-configuration|
+  3. Commands .................................... |snot-commands|
+  4. Mappings .................................... |snot-mappings|
+  5. Lua API ..................................... |snot-api|
+  6. Templates ................................... |snot-templates|
+
+==============================================================================
+1. INTRODUCTION                                            *snot-introduction*
+
+snot keeps notes as plain files in a single directory:
+
+  - Daily notes are named after their date, e.g. `20240102.md`.
+  - Other notes are named `{date}__{slug}.md`, e.g. `20240102__my-idea.md`.
+
+New notes open in a buffer pre-filled from a template. Nothing is written to
+disk until you save, so an abandoned note leaves no file behind.
+
+Notes can carry tags in TOML front matter, which |:Snot| `tag` searches with
+telescope.nvim (optional).
+
+Requires Neovim 0.11 or later. Run |:checkhealth| `snot` to verify your setup.
+
+==============================================================================
+2. CONFIGURATION                                          *snot-configuration*
+
+                                                                    *g:snot*
+No setup call is needed. To change the defaults, set `vim.g.snot` before the
+plugin is first used:
+>lua
+  vim.g.snot = {
+    directory = "~/notes",   -- folder containing notes
+    date_format = "%Y%m%d",  -- strftime format for dates in file names
+    extension = ".md",       -- note file extension, including the dot
+    open_cmd = "edit",       -- Ex command used to open notes
+    templates = { ... },     -- see |snot-templates|
+  }
+<
+                                                                *snot.setup()*
+Alternatively call `require("snot").setup(opts)` with the same table. Each
+call starts again from the defaults, so options don't accumulate.
+
+Invalid options are reported and the defaults are used instead.
+
+==============================================================================
+3. COMMANDS                                                    *snot-commands*
+
+                                                                       *:Snot*
+:Snot new [title]       Create a note. Prompts for a title if none is given.
+
+:Snot daily [date]      Open a daily note, creating a buffer for it if it
+                        doesn't exist. [date] is `today` (default),
+                        `yesterday`, `tomorrow`, an offset such as `-3` or
+                        `+1`, or a literal date in `date_format`.
+                        Existing daily notes are offered as completions.
+
+:Snot dir               Open the notes directory.
+
+:Snot tag [tag]         Find notes tagged [tag] with telescope. Without a
+                        tag, pick one from all tags first.
+
+`new`, `daily` and `dir` accept window modifiers, which open the note in a
+split instead of using `open_cmd`:
+>vim
+  :vertical Snot daily yesterday
+  :tab Snot new Meeting notes
+  :botright Snot dir
+<
+==============================================================================
+4. MAPPINGS                                                    *snot-mappings*
+
+snot defines no key mappings. These <Plug> mappings are available:
+
+  *<Plug>(snot-new)*     Prompt for a title and create a note.
+  *<Plug>(snot-daily)*   Open today's daily note.
+  *<Plug>(snot-dir)*     Open the notes directory.
+  *<Plug>(snot-tag)*     Pick a tag, then a note carrying it.
+
+Example:
+>lua
+  vim.keymap.set("n", "<leader>pd", "<Plug>(snot-daily)")
+  vim.keymap.set("n", "<leader>pn", "<Plug>(snot-new)")
+<
+==============================================================================
+5. LUA API                                                          *snot-api*
+
+All functions are on `require("snot")`. Functions that open a note return
+`bufnr, path` on success, or `nil, err` after reporting the error.
+
+create_note({opts})                                       *snot.create_note()*
+    Open a new note pre-filled from a template. If the note already exists,
+    a daily note is opened as-is and any other note gets a unique suffix.
+
+    {opts} fields, all optional:
+      - title     (string) required unless `is_daily`
+      - content   (string) text for `${content}`
+      - tags      (string|string[]) list, or comma/space separated string
+      - template  (string) template name, default `"default"`
+      - is_daily  (boolean) create a daily note
+      - date      (string) date in `date_format`, default today
+      - cmd       (string) overrides `open_cmd` for this call
+
+goto_daily({opts})                                         *snot.goto_daily()*
+    Open the daily note for `opts.date` (default today). {opts} may contain
+    `date`, `content` and `cmd`. `create_daily()` is an alias.
+
+open_dir({opts})                                             *snot.open_dir()*
+    Open the notes directory, creating it if needed. {opts} may contain `cmd`.
+
+directory()                                                 *snot.directory()*
+    Absolute path of the notes directory.
+
+config()                                                       *snot.config()*
+    The resolved configuration table.
+
+tags()                                                           *snot.tags()*
+    All tags used across notes, sorted.
+
+notes_with_tag({tag})                                  *snot.notes_with_tag()*
+    Full paths of notes carrying {tag}, newest first.
+
+find_by_tag([{tag}], [{opts}])                            *snot.find_by_tag()*
+    Telescope picker over notes carrying {tag}. Without a tag, pick one from
+    all tags first. {opts} is passed to telescope.
+
+==============================================================================
+6. TEMPLATES                                                  *snot-templates*
+
+`templates` maps names to template strings. `${name}` placeholders are
+replaced when a note is created; unknown placeholders become empty.
+
+  `${title}`       note title (the date, for daily notes)
+  `${title_toml}`  title as a quoted TOML string
+  `${date}`        note date in `date_format`
+  `${tags}`        tags as a TOML array, e.g. `["a", "b"]`
+  `${content}`     the `content` option
+
+The cursor is placed at the end of the rendered template. The default
+template is:
+>
+  +++
+  title = ${title_toml}
+  date = ${date}
+  tags = ${tags}
+  +++
+
+  # ${title}
+
+  ${content}
+<
+|snot.tags()| reads the `tags = [...]` line from `+++` front matter at the
+top of each note, so keep that format if you want tag search to work.
+
+ vim:tw=78:ts=8:noet:ft=help:norl:
