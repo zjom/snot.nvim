@@ -32,6 +32,7 @@ Set `vim.g.snot` before first use (these are the defaults):
 ```lua
 vim.g.snot = {
   directory = "~/notes",
+  daily_directory = nil, -- e.g. "daily" for ~/notes/daily; unset keeps daily notes in `directory`
   date_format = "%Y%m%d",
   extension = ".md",
   open_cmd = "edit", -- or "vsplit", "tabedit", "botright split", ...
@@ -43,12 +44,12 @@ See `:help snot-templates` to customise the note template.
 
 ## Usage
 
-| Command              | Action                                                               |
-| -------------------- | -------------------------------------------------------------------- |
-| `:Snot new [title]`  | New note (prompts for a title if none given)                          |
-| `:Snot daily [date]` | Daily note: `today`, `yesterday`, `tomorrow`, `-3`, `+1` or a date    |
-| `:Snot dir`          | Open the notes directory                                             |
-| `:Snot tag [tag]`    | Find notes by tag with Telescope                                     |
+| Command              | Action                                                             |
+| -------------------- | ------------------------------------------------------------------ |
+| `:Snot new [title]`  | New note (prompts for a title if none given)                       |
+| `:Snot daily [date]` | Daily note: `today`, `yesterday`, `tomorrow`, `-3`, `+1` or a date |
+| `:Snot dir`          | Open the notes directory                                           |
+| `:Snot tag [tag]`    | Find notes by tag with Telescope                                   |
 
 Window modifiers work too: `:vertical Snot daily`, `:tab Snot new Idea`.
 

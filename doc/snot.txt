@@ -35,12 +35,17 @@ plugin is first used:
 >lua
   vim.g.snot = {
     directory = "~/notes",   -- folder containing notes
+    daily_directory = nil,   -- folder for daily notes, see below
     date_format = "%Y%m%d",  -- strftime format for dates in file names
     extension = ".md",       -- note file extension, including the dot
     open_cmd = "edit",       -- Ex command used to open notes
     templates = { ... },     -- see |snot-templates|
   }
 <
+`daily_directory` puts daily notes in their own folder. A relative path is
+inside `directory` (e.g. `"daily"` means `~/notes/daily`); an absolute or
+`~` path is used as-is. When unset, daily notes go in `directory`.
+
                                                                 *snot.setup()*
 Alternatively call `require("snot").setup(opts)` with the same table. Each
 call starts again from the defaults, so options don't accumulate.

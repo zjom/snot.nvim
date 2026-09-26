@@ -58,7 +58,10 @@ function M.find_by_tag(tag, opts)
   local conf = require("telescope.config").values
   local make_entry = require("telescope.make_entry")
 
-  local names = vim.tbl_map(vim.fs.basename, store.notes_with_tag(tag))
+  -- Relative to cwd where possible; daily notes may live in a subfolder or elsewhere.
+  local names = vim.tbl_map(function(path)
+    return vim.fs.relpath(opts.cwd, path) or path
+  end, store.notes_with_tag(tag))
   if #names == 0 then
     vim.notify(("snot: no notes tagged %q"):format(tag), vim.log.levels.INFO)
     return

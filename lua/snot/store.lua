@@ -4,11 +4,19 @@ local config = require("snot.config")
 
 local M = {}
 
----@param stem string file name without extension
+--- Folder daily notes live in: `daily_directory` if set, else `directory`.
 ---@return string
-function M.path(stem)
+function M.daily_dir()
   local cfg = config.get()
-  return vim.fs.joinpath(cfg.directory, stem .. cfg.extension)
+  return cfg.daily_directory or cfg.directory
+end
+
+---@param stem string file name without extension
+---@param dir? string defaults to the notes directory
+---@return string
+function M.path(stem, dir)
+  local cfg = config.get()
+  return vim.fs.joinpath(dir or cfg.directory, stem .. cfg.extension)
 end
 
 --- True if the note is on disk or already open (possibly unsaved) in a buffer.
@@ -18,21 +26,38 @@ function M.exists(path)
   return vim.uv.fs_stat(path) ~= nil or vim.fn.bufexists(path) == 1
 end
 
---- File names of all notes in the notes folder, newest first.
+--- File names of the notes directly inside `dir`.
+---@param dir string
 ---@return string[]
-function M.list()
+local function note_names(dir)
   local out = {}
-  local cfg = config.get()
-  if vim.fn.isdirectory(cfg.directory) ~= 1 then
+  if vim.fn.isdirectory(dir) ~= 1 then
     return out
   end
-  for name, kind in vim.fs.dir(cfg.directory) do
-    if kind == "file" and vim.endswith(name, cfg.extension) then
+  local ext = config.get().extension
+  for name, kind in vim.fs.dir(dir) do
+    if kind == "file" and vim.endswith(name, ext) then
       out[#out + 1] = name
     end
   end
+  return out
+end
+
+--- Full paths of all notes, including daily notes in `daily_directory`, newest first.
+---@return string[]
+function M.list()
+  local dirs = { config.get().directory }
+  if M.daily_dir() ~= dirs[1] then
+    dirs[2] = M.daily_dir()
+  end
+  local out = {}
+  for _, dir in ipairs(dirs) do
+    for _, name in ipairs(note_names(dir)) do
+      out[#out + 1] = vim.fs.joinpath(dir, name)
+    end
+  end
   table.sort(out, function(a, b)
-    return a > b
+    return vim.fs.basename(a) > vim.fs.basename(b)
   end)
   return out
 end
@@ -43,11 +68,14 @@ end
 function M.daily_dates()
   local ext = config.get().extension
   local out = {}
-  for _, name in ipairs(M.list()) do
+  for _, name in ipairs(note_names(M.daily_dir())) do
     if not name:find("__", 1, true) then
       out[#out + 1] = name:sub(1, #name - #ext)
     end
   end
+  table.sort(out, function(a, b)
+    return a > b
+  end)
   return out
 end
 
@@ -86,10 +114,9 @@ end
 --- All tags used across notes, sorted.
 ---@return string[]
 function M.tags()
-  local dir = config.get().directory
   local seen = {}
-  for _, name in ipairs(M.list()) do
-    for _, tag in ipairs(M.read_tags(vim.fs.joinpath(dir, name))) do
+  for _, path in ipairs(M.list()) do
+    for _, tag in ipairs(M.read_tags(path)) do
       seen[tag] = true
     end
   end
@@ -102,10 +129,8 @@ end
 ---@param tag string
 ---@return string[]
 function M.notes_with_tag(tag)
-  local dir = config.get().directory
   local out = {}
-  for _, name in ipairs(M.list()) do
-    local path = vim.fs.joinpath(dir, name)
+  for _, path in ipairs(M.list()) do
     if vim.tbl_contains(M.read_tags(path), tag) then
       out[#out + 1] = path
     end

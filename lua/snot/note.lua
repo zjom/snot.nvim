@@ -32,15 +32,16 @@ function M.create(opts)
   end
 
   -- Create the folder now so a later :w doesn't fail with E212.
-  local ok, err = util.ensure_dir(cfg.directory)
+  local dir = opts.is_daily and store.daily_dir() or cfg.directory
+  local ok, err = util.ensure_dir(dir)
   if not ok then
-    return util.fail(("could not create %s: %s"):format(cfg.directory, err))
+    return util.fail(("could not create %s: %s"):format(dir, err))
   end
 
   local date = opts.date or tostring(os.date(cfg.date_format))
   local title = opts.is_daily and date or opts.title --[[@as string]]
   local stem = opts.is_daily and date or (date .. "__" .. util.slugify(title))
-  local path = store.path(stem)
+  local path = store.path(stem, dir)
 
   if store.exists(path) then
     if opts.is_daily then
@@ -51,7 +52,7 @@ function M.create(opts)
       return buf, path
     end
     local sec, usec = vim.uv.gettimeofday()
-    path = store.path(("%s__%d%06d"):format(stem, sec, usec))
+    path = store.path(("%s__%d%06d"):format(stem, sec, usec), dir)
   end
 
   local tags = util.normalize_tags(opts.tags)

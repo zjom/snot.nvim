@@ -142,6 +142,45 @@ describe("notes", function()
   end)
 end)
 
+describe("daily_directory", function()
+  local dir
+
+  before_each(function()
+    dir = vim.fn.tempname()
+    vim.fn.mkdir(dir, "p")
+  end)
+
+  after_each(function()
+    vim.cmd("silent! %bwipeout!")
+    vim.fn.delete(dir, "rf")
+  end)
+
+  it("resolves relative paths inside the notes directory", function()
+    snot.setup({ directory = dir, daily_directory = "daily" })
+    assert.are.equal(vim.fs.joinpath(dir, "daily"), snot.config().daily_directory)
+    snot.setup({ directory = dir, daily_directory = "/tmp/elsewhere" })
+    assert.are.equal("/tmp/elsewhere", snot.config().daily_directory)
+  end)
+
+  it("creates daily notes there, and other notes in the root", function()
+    snot.setup({ directory = dir, daily_directory = "daily" })
+    local _, daily = snot.goto_daily({ date = "20240107" })
+    assert.are.equal(vim.fs.joinpath(dir, "daily", "20240107.md"), daily)
+    assert.are.equal(1, vim.fn.isdirectory(vim.fs.joinpath(dir, "daily")))
+    local _, note = snot.create_note({ title = "x", date = "20240107" })
+    assert.are.equal(vim.fs.joinpath(dir, "20240107__x.md"), note)
+  end)
+
+  it("completes and indexes daily notes from there", function()
+    snot.setup({ directory = dir, daily_directory = "daily" })
+    vim.fn.mkdir(vim.fs.joinpath(dir, "daily"), "p")
+    write(vim.fs.joinpath(dir, "daily", "20240108.md"), { "+++", 'tags = ["d"]', "+++" })
+    write(vim.fs.joinpath(dir, "20240109.md"), { "" })
+    assert.are.same({ "20240108" }, require("snot.store").daily_dates())
+    assert.are.same({ vim.fs.joinpath(dir, "daily", "20240108.md") }, snot.notes_with_tag("d"))
+  end)
+end)
+
 describe(":Snot", function()
   local dir
 

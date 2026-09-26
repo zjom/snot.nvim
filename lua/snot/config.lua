@@ -5,6 +5,7 @@
 
 ---@class snot.Config
 ---@field directory string   folder containing notes
+---@field daily_directory? string folder for daily notes; relative paths are inside `directory`. Unset: `directory`
 ---@field date_format string strftime format used for daily notes and note prefixes
 ---@field extension string   file extension for notes, including the dot
 ---@field open_cmd string    Ex command used to open notes, e.g. "edit", "vsplit", "tabedit", "botright split"
@@ -12,6 +13,7 @@
 
 ---@class snot.UserConfig
 ---@field directory? string
+---@field daily_directory? string
 ---@field date_format? string
 ---@field extension? string
 ---@field open_cmd? string
@@ -49,6 +51,7 @@ local current
 function M.validate(cfg)
   return pcall(function()
     vim.validate("directory", cfg.directory, "string")
+    vim.validate("daily_directory", cfg.daily_directory, "string", true)
     vim.validate("date_format", cfg.date_format, "string")
     vim.validate("extension", cfg.extension, "string")
     vim.validate("open_cmd", cfg.open_cmd, "string")
@@ -75,6 +78,10 @@ local function resolve(opts)
     cfg = vim.deepcopy(M.defaults)
   end
   cfg.directory = vim.fs.normalize(cfg.directory)
+  if cfg.daily_directory then
+    local daily = vim.fs.normalize(cfg.daily_directory)
+    cfg.daily_directory = vim.fs.abspath(daily) == daily and daily or vim.fs.joinpath(cfg.directory, daily)
+  end
   return cfg
 end
 
