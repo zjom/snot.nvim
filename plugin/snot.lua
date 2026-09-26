@@ -33,10 +33,11 @@ vim.api.nvim_create_user_command("Snot", function(o)
   require("snot.commands").run(o)
 end, {
   nargs = "+",
+  range = true,
   complete = function(arg_lead, cmdline)
     return require("snot.commands").complete(arg_lead, cmdline)
   end,
-  desc = "Snot: new | daily [date] | dir | tag [tag] | backlinks [note]",
+  desc = "Snot: new | daily [date] | dir | tag [tag] | backlinks [note] | format",
 })
 
 vim.keymap.set("n", "<Plug>(snot-new)", function()

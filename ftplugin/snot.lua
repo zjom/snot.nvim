@@ -18,7 +18,21 @@ vim.opt_local.conceallevel = 2
 -- Highlighting comes from tree-sitter-snot; see :checkhealth snot.
 local ts = require("snot.treesitter").start()
 
-vim.b.undo_ftplugin = "setlocal path< suffixesadd< includeexpr< conceallevel<"
+-- Align metadata on save (lua/snot/align.lua), unless `format_on_save` is off.
+local group = vim.api.nvim_create_augroup("snot_format", { clear = false })
+vim.api.nvim_clear_autocmds({ group = group, buffer = 0 })
+vim.api.nvim_create_autocmd("BufWritePre", {
+  group = group,
+  buffer = 0,
+  callback = function(ev)
+    if require("snot.config").get().format_on_save then
+      require("snot").format(ev.buf)
+    end
+  end,
+  desc = "snot: align metadata",
+})
+
+vim.b.undo_ftplugin = "setlocal path< suffixesadd< includeexpr< conceallevel<" .. " | autocmd! snot_format * <buffer>"
 if ts then
   vim.b.undo_ftplugin = vim.b.undo_ftplugin .. " | lua vim.treesitter.stop()"
 end

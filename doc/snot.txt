@@ -46,6 +46,18 @@ always show links in full: >lua
     vim.opt_local.conceallevel = 0
 <
 
+                                                                  *snot-align*
+When a note is saved, the metadata ending a heading or list item is pushed to
+the right margin, away from the text, like tags in help files: >
+  # Atlas kickoff                                     @project:atlas @urgent
+  - [ ] Draft the plan                                @due:2024-01-09
+<
+The metadata ends at 'textwidth', or column 79 when it is 0. The gap is
+padded with tabs, up to 'tabstop', unless 'expandtab' is set. When the line
+is too long, one space is kept. Metadata in the middle of a line, and lines
+in code and math blocks, are left alone. Set `format_on_save = false` to turn
+this off; |:Snot| `format` still aligns on request.
+
 Requires Neovim 0.11 or later. Run |:checkhealth| `snot` to verify your setup.
 
 ==============================================================================
@@ -61,6 +73,7 @@ plugin is first used:
     date_format = "%Y%m%d",  -- strftime format for dates in file names
     extension = ".snot",     -- note file extension, including the dot
     open_cmd = "edit",       -- Ex command used to open notes
+    format_on_save = true,   -- align metadata on save, see |snot-align|
     templates = { ... },     -- see |snot-templates|
     picker = nil,            -- picker for tags and backlinks, see below
   }
@@ -108,6 +121,9 @@ Invalid options are reported and the defaults are used instead.
 :Snot tag [tag]         Find every place [tag] is set, e.g. `work` or
                         `@work`, with the |snot-picker|. Without a tag,
                         pick one from all tags first.
+
+:[range]Snot format    Align the metadata in headings and list items in
+                        [range], default the whole note. See |snot-align|.
 
 :Snot backlinks [note]  Find links to [note], a link path such as
                         `20240102__my-idea` or `daily/20240102`, or to the
@@ -194,6 +210,10 @@ backlinks({note}, {on_done})                                *snot.backlinks()*
 find_backlinks([{note}])                               *snot.find_backlinks()*
     Pick from the notes linking to {note}, default the current note, with
     the |snot-picker|.
+
+format([{bufnr}, {first}, {last}])                             *snot.format()*
+    Align metadata in lines {first} to {last} (1-based, inclusive) of
+    {bufnr}, default all of the current buffer. See |snot-align|.
 
 ==============================================================================
 6. TEMPLATES                                                  *snot-templates*

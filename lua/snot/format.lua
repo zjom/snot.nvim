@@ -8,6 +8,7 @@ local M = {}
 ---@field values string[]
 ---@field lnum   integer 1-based
 ---@field col    integer 1-based byte column of the "@"
+---@field end_col integer 1-based byte column just past the token
 
 ---@class snot.Link
 ---@field target string trimmed and unescaped
@@ -176,7 +177,7 @@ local function scan_inline(line, lnum, tokens, links)
     elseif c == "@" and (prev == "" or is_space(prev) or (is_row and prev == "|")) then
       local after, key, values = read_token(line, i, is_row)
       if after then
-        tokens[#tokens + 1] = { key = key, values = values, lnum = lnum, col = i }
+        tokens[#tokens + 1] = { key = key, values = values, lnum = lnum, col = i, end_col = after }
         i = after
       else
         i = i + 1
@@ -192,26 +193,40 @@ end
 ---@return snot.Token[] tokens, snot.Link[] links
 function M.parse(lines)
   local tokens, links = {}, {}
+  for lnum, line in M.inline_lines(lines) do
+    scan_inline((line:gsub("\r$", "")), lnum, tokens, links)
+  end
+  return tokens, links
+end
+
+--- Iterate over the lines outside code and math blocks, and their fences:
+--- `for lnum, line in inline_lines(lines)`.
+---@param lines string[]
+---@return fun(): integer?, string?
+function M.inline_lines(lines)
   ---@type string? pattern matching the closing fence of the open verbatim block
   local fence
-  for lnum, line in ipairs(lines) do
-    line = line:gsub("\r$", "")
-    if fence then
-      if line:match(fence) then
-        fence = nil
-      end
-    else
-      local ticks = line:match("^%s*(```+)")
-      if ticks then
-        fence = "^%s*" .. ticks .. "`*%s*$"
-      elseif line:match("^%s*%$%$%s*$") then
-        fence = "^%s*%$%$%s*$"
+  local lnum = 0
+  return function()
+    while lnum < #lines do
+      lnum = lnum + 1
+      local line = lines[lnum]
+      if fence then
+        if line:match(fence) then
+          fence = nil
+        end
       else
-        scan_inline(line, lnum, tokens, links)
+        local ticks = line:match("^%s*(```+)")
+        if ticks then
+          fence = "^%s*" .. ticks .. "`*%s*$"
+        elseif line:match("^%s*%$%$%s*$") then
+          fence = "^%s*%$%$%s*$"
+        else
+          return lnum, line
+        end
       end
     end
   end
-  return tokens, links
 end
 
 --- Read and parse the note at `path`; nothing if it can't be read.
@@ -266,8 +281,7 @@ function M.slug(text)
   -- Remove tokens back to front so earlier columns stay valid.
   for t = #tokens, 1, -1 do
     local tok = tokens[t]
-    local after = read_token(text, tok.col, false)
-    text = text:sub(1, tok.col - 1) .. text:sub(after --[[@as integer]])
+    text = text:sub(1, tok.col - 1) .. text:sub(tok.end_col)
   end
   return (text:lower():gsub("%W+", "-"):gsub("^%-+", ""):gsub("%-+$", ""))
 end

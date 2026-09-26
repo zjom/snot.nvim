@@ -51,6 +51,18 @@ installs `snot` and `snot_inline` along with their queries. snot starts tree-sit
 
 Links with a label, like `[[projects/atlas#risks|risks]]`, are shown as just the label. snot sets `conceallevel=2` in notes; the cursor line still shows the full link (see `'concealcursor'`). Override either in `after/ftplugin/snot.lua`.
 
+On save, the metadata ending a heading or list item is pushed to the right
+margin, like tags in Vim help files:
+
+```
+# Atlas kickoff                                   @project:atlas @urgent
+- [ ] Draft the plan                              @due:2024-01-09
+```
+
+The margin is `'textwidth'` (79 when unset), and padding is tabs unless
+`'expandtab'` is set. Set `format_on_save = false` to turn this off; `:Snot format`
+still works.
+
 ## Configuration
 
 Set `vim.g.snot` before first use (these are the defaults):
@@ -62,6 +74,7 @@ vim.g.snot = {
   date_format = "%Y%m%d",
   extension = ".snot",
   open_cmd = "edit", -- or "vsplit", "tabedit", "botright split", ...
+  format_on_save = true, -- align metadata in headings and list items on save
   picker = nil, -- tag/backlinks picker: "telescope", "fzf-lua", "snacks", "mini.pick", "quickfix",
                 -- "select" or a function; unset uses the first one installed
 }
@@ -78,6 +91,7 @@ See `:help snot-templates` to customise the note template.
 | `:Snot daily [date]`     | Daily note: `today`, `yesterday`, `tomorrow`, `-3`, `+1` or a date |
 | `:Snot dir`              | Open the notes directory                                           |
 | `:Snot tag [tag]`        | Find where a tag is set (pick a tag if none given)                 |
+| `:[range]Snot format`    | Align metadata in headings and list items (whole note by default)  |
 | `:Snot backlinks [note]` | Find notes linking to a note (default: the current one)            |
 
 Window modifiers work too: `:vertical Snot daily`, `:tab Snot new Idea`.

@@ -11,6 +11,7 @@
 ---@field open_cmd string    Ex command used to open notes, e.g. "edit", "vsplit", "tabedit", "botright split"
 ---@field templates table<string, string>
 ---@field picker? snot.PickerName | snot.PickerFn picker for tags and backlinks. Unset: first one installed
+---@field format_on_save boolean align metadata in headings and list items when a note is saved
 
 ---@alias snot.PickerName "telescope" | "fzf-lua" | "snacks" | "mini.pick" | "quickfix" | "select"
 
@@ -22,6 +23,7 @@
 ---@field open_cmd? string
 ---@field templates? table<string, string>
 ---@field picker? snot.PickerName | snot.PickerFn
+---@field format_on_save? boolean
 
 local M = {}
 
@@ -31,6 +33,7 @@ M.defaults = {
   date_format = "%Y%m%d",
   extension = ".snot",
   open_cmd = "edit",
+  format_on_save = true,
   templates = {
     default = table.concat({
       "@created:${created}${tags}",
@@ -76,6 +79,7 @@ function M.validate(cfg)
     for name, template in pairs(cfg.templates) do
       vim.validate("templates." .. tostring(name), template, "string")
     end
+    vim.validate("format_on_save", cfg.format_on_save, "boolean")
     vim.validate("picker", cfg.picker, function(p)
       return type(p) == "function" or require("snot.picker").backends[p] ~= nil
     end, true, "a picker name or function")

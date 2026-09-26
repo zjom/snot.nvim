@@ -94,4 +94,14 @@ function M.find_backlinks(note)
   return require("snot.find").backlinks(note)
 end
 
+--- Align the metadata ending headings and list items to the right margin,
+--- 'textwidth' (79 if unset), in lines `first` to `last` of a note (default:
+--- all of the current buffer).
+---@param bufnr? integer
+---@param first? integer 1-based
+---@param last? integer 1-based, inclusive
+function M.format(bufnr, first, last)
+  require("snot.align").buffer(bufnr, first, last)
+end
+
 return M

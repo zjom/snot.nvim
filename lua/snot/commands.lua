@@ -77,6 +77,16 @@ local subcommands = {
       return filter_prefix(require("snot.store").tags(), lead)
     end,
   },
+  format = {
+    desc = "align metadata in headings and list items (a range, or the whole note)",
+    impl = function(_, o)
+      if o.range > 0 then
+        require("snot").format(0, o.line1, o.line2)
+      else
+        require("snot").format(0)
+      end
+    end,
+  },
   backlinks = {
     desc = "find notes linking to a note (default: the current one)",
     impl = function(args)

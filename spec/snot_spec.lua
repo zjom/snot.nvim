@@ -510,3 +510,94 @@ describe("treesitter", function()
     vim.cmd("bwipeout!")
   end)
 end)
+
+describe("align", function()
+  local align = require("snot.align")
+  local opts = { width = 30, expandtab = true, tabstop = 8 }
+
+  it("pushes the metadata ending a heading or list item to the margin", function()
+    assert.are.equal("# Kickoff    @project:atlas @a", align.line("# Kickoff @project:atlas @a", opts))
+    assert.are.equal("## Decisions     @id:decisions", align.line("## Decisions\t@id:decisions  ", opts))
+    assert.are.equal("  - [ ] Plan   @due:2026-09-30", align.line("  - [ ] Plan @due:2026-09-30", opts))
+    assert.are.equal("+ Ship                      @x", align.line("+ Ship @x", opts))
+    assert.are.equal("12. [x] Room                @x", align.line("12. [x] Room @x", opts))
+  end)
+
+  it("keeps one space when the line is too long", function()
+    assert.are.equal("# A long heading about things @a @b", align.line("# A long heading about things    @a @b", opts))
+  end)
+
+  it("measures display width", function()
+    assert.are.equal("# ünï                       @a", align.line("# ünï @a", opts))
+  end)
+
+  it("pads with tabs unless expandtab is set", function()
+    local tabs = { width = 30, expandtab = false, tabstop = 8 }
+    assert.are.equal("# Kickoff\t    @project:x", align.line("# Kickoff @project:x", tabs))
+  end)
+
+  it("leaves other lines alone", function()
+    for _, line in ipairs({
+      "text @a",
+      "| row | @a |",
+      "# @work",
+      "- [ ] @due:2026-09-30",
+      "# Tokens @a in the middle",
+      "# Code `@a`",
+      "# Link [[x|@a]]",
+      "####### Seven @a",
+      "#Nospace @a",
+    }) do
+      assert.are.equal(line, align.line(line, opts))
+    end
+  end)
+
+  describe("buffers", function()
+    local aligned = "# A" .. (" "):rep(15) .. "@b"
+    local function note(lines)
+      vim.cmd.edit(vim.fn.tempname() .. ".snot")
+      vim.bo.textwidth = 20
+      vim.bo.expandtab = true
+      vim.api.nvim_buf_set_lines(0, 0, -1, false, lines)
+    end
+
+    after_each(function()
+      snot.setup()
+      vim.cmd("bwipeout!")
+    end)
+
+    it("uses textwidth, or 79 when it is unset", function()
+      note({ "# A @b" })
+      snot.format()
+      assert.are.equal(20, #vim.api.nvim_get_current_line())
+      vim.bo.textwidth = 0
+      snot.format()
+      assert.are.equal(79, #vim.api.nvim_get_current_line())
+    end)
+
+    it("skips code and math blocks, and lines outside the range", function()
+      note({ "# A @b", "```", "# A @b", "```", "$$", "- x @y", "$$", "- x @y" })
+      snot.format(0, 2)
+      assert.are.same(
+        { "# A @b", "```", "# A @b", "```", "$$", "- x @y", "$$", "- x" .. (" "):rep(15) .. "@y" },
+        vim.api.nvim_buf_get_lines(0, 0, -1, false)
+      )
+    end)
+
+    it("formats a range with :Snot format", function()
+      note({ "# A @b", "# A @b" })
+      vim.cmd("2Snot format")
+      assert.are.same({ "# A @b", aligned }, vim.api.nvim_buf_get_lines(0, 0, -1, false))
+    end)
+
+    it("formats on save unless format_on_save is off", function()
+      note({ "# A @b" })
+      vim.cmd.write()
+      assert.are.equal(aligned, vim.api.nvim_get_current_line())
+      snot.setup({ format_on_save = false })
+      vim.api.nvim_set_current_line("# A @b")
+      vim.cmd.write()
+      assert.are.equal("# A @b", vim.api.nvim_get_current_line())
+    end)
+  end)
+end)
