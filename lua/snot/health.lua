@@ -43,10 +43,16 @@ function M.check()
   end
 
   health.start("snot: optional dependencies")
-  if pcall(require, "telescope") then
-    health.ok("telescope.nvim found (:Snot tag)")
+  if vim.fn.executable("rg") == 1 then
+    health.ok("ripgrep found (:Snot backlinks)")
   else
-    health.warn("telescope.nvim not found; :Snot tag is unavailable")
+    health.warn("ripgrep (rg) not found; :Snot backlinks is unavailable")
+  end
+  local picker = cfg.picker
+  if type(picker) == "function" then
+    health.info("picker: custom function")
+  else
+    health.info("picker: " .. (picker or "auto (telescope, fzf-lua, snacks, mini.pick, then vim.ui.select)"))
   end
 end
 

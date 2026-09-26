@@ -22,7 +22,11 @@ New notes open in a buffer pre-filled from a template. Nothing is written to
 disk until you save, so an abandoned note leaves no file behind.
 
 Notes can carry tags in TOML front matter, which |:Snot| `tag` searches with
-telescope.nvim (optional).
+the |snot-picker|.
+
+Notes link to each other with `[[stem]]` or `[[stem|alias]]`, where the stem
+is the file name without its extension, e.g. `[[20240102__my-idea]]`.
+|:Snot| `backlinks` lists the notes linking to one (requires ripgrep).
 
 Requires Neovim 0.11 or later. Run |:checkhealth| `snot` to verify your setup.
 
@@ -40,12 +44,26 @@ plugin is first used:
     extension = ".md",       -- note file extension, including the dot
     open_cmd = "edit",       -- Ex command used to open notes
     templates = { ... },     -- see |snot-templates|
+    picker = nil,            -- picker for tags and backlinks, see below
   }
 <
 `daily_directory` puts daily notes in their own folder. A relative path is
 inside `directory` (e.g. `"daily"` means `~/notes/daily`); an absolute or
 `~` path is used as-is. When unset, daily notes go in `directory`.
 
+                                                                *snot-picker*
+`picker` chooses how tag searches and backlinks are shown: `"telescope"`, `"fzf-lua"`,
+`"snacks"`, `"mini.pick"`, `"quickfix"` or `"select"` (|vim.ui.select()|).
+When unset, the first of telescope, fzf-lua, snacks and mini.pick that is
+installed is used (snacks and mini.pick once set up), else `"select"`.
+It can also be a function called with the notes to pick from and
+`{ prompt }`; choosing a tag then uses |vim.ui.select()|:
+>lua
+  picker = function(items, opts)
+    -- items: list of { path, lnum?, col?, text? }; tag searches give
+    -- only `path`, backlinks give all four
+  end
+<
                                                                 *snot.setup()*
 Alternatively call `require("snot").setup(opts)` with the same table. Each
 call starts again from the defaults, so options don't accumulate.
@@ -66,8 +84,12 @@ Invalid options are reported and the defaults are used instead.
 
 :Snot dir               Open the notes directory.
 
-:Snot tag [tag]         Find notes tagged [tag] with telescope. Without a
-                        tag, pick one from all tags first.
+:Snot tag [tag]         Find notes tagged [tag] with the |snot-picker|.
+                        Without a tag, pick one from all tags first.
+
+:Snot backlinks [note]  Find notes linking to [note], a stem such as
+                        `20240102__my-idea`, or to the current note. Uses
+                        the |snot-picker|. Only saved notes are searched.
 
 `new`, `daily` and `dir` accept window modifiers, which open the note in a
 split instead of using `open_cmd`:
@@ -85,6 +107,7 @@ snot defines no key mappings. These <Plug> mappings are available:
   *<Plug>(snot-daily)*   Open today's daily note.
   *<Plug>(snot-dir)*     Open the notes directory.
   *<Plug>(snot-tag)*     Pick a tag, then a note carrying it.
+  *<Plug>(snot-backlinks)* Find notes linking to the current one.
 
 Example:
 >lua
@@ -129,9 +152,18 @@ tags()                                                           *snot.tags()*
 notes_with_tag({tag})                                  *snot.notes_with_tag()*
     Full paths of notes carrying {tag}, newest first.
 
-find_by_tag([{tag}], [{opts}])                            *snot.find_by_tag()*
-    Telescope picker over notes carrying {tag}. Without a tag, pick one from
-    all tags first. {opts} is passed to telescope.
+find_by_tag([{tag}])                                      *snot.find_by_tag()*
+    Pick from the notes carrying {tag} with the |snot-picker|. Without a tag,
+    pick one from all tags first.
+
+backlinks({note}, {on_done})                                *snot.backlinks()*
+    Find links to {note} (stem or path) in saved notes with ripgrep, in the
+    background. Calls {on_done} with a list of `{ path, lnum, col, text }`,
+    newest note first, or with `nil, err`.
+
+find_backlinks([{note}])                               *snot.find_backlinks()*
+    Pick from the notes linking to {note}, default the current note, with
+    the |snot-picker|.
 
 ==============================================================================
 6. TEMPLATES                                                  *snot-templates*

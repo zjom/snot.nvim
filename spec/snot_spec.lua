@@ -140,6 +140,42 @@ describe("notes", function()
       vim.fs.joinpath(dir, "20240101__a.md"),
     }, snot.notes_with_tag("y"))
   end)
+
+  it("hands tagged notes to the configured picker", function()
+    write(vim.fs.joinpath(dir, "20240101__a.md"), { "+++", 'tags = ["x"]', "+++" })
+    local got
+    snot.setup({
+      directory = dir,
+      picker = function(items, opts)
+        got = { items = items, prompt = opts.prompt }
+      end,
+    })
+    vim.cmd("Snot tag x")
+    assert.are.equal('Notes tagged "x"', got.prompt)
+    assert.are.same({ { path = vim.fs.joinpath(dir, "20240101__a.md") } }, got.items)
+  end)
+
+  it("chooses a tag first when none is given", function()
+    write(vim.fs.joinpath(dir, "20240101__a.md"), { "+++", 'tags = ["x", "y"]', "+++" })
+    snot.setup({ directory = dir, picker = "quickfix" })
+    local select = vim.ui.select
+    local offered
+    ---@diagnostic disable-next-line: duplicate-set-field
+    vim.ui.select = function(items, _, on_choice)
+      offered = items
+      on_choice("y")
+    end
+    vim.cmd("Snot tag")
+    vim.ui.select = select
+    assert.are.same({ "x", "y" }, offered)
+    assert(vim.wait(1000, function()
+      return #vim.fn.getqflist() > 0
+    end))
+    assert.are.equal('Notes tagged "y"', vim.fn.getqflist({ title = 0 }).title)
+    vim.cmd("cclose")
+    vim.fn.setqflist({}, "f")
+    vim.fn.setqflist({}, "f")
+  end)
 end)
 
 describe("daily_directory", function()
@@ -218,5 +254,110 @@ describe(":Snot", function()
     vim.cmd("vertical Snot daily 20240106")
     assert.are.equal(wins + 1, #vim.api.nvim_tabpage_list_wins(0))
     assert.is_true(vim.endswith(vim.api.nvim_buf_get_name(0), "20240106.md"))
+  end)
+end)
+
+describe("backlinks", function()
+  local dir
+
+  --- Run store.backlinks and wait for its result.
+  ---@param note string
+  local function backlinks(note)
+    local result, err
+    snot.backlinks(note, function(r, e)
+      result, err = r or false, e
+    end)
+    assert(
+      vim.wait(5000, function()
+        return result ~= nil
+      end),
+      "timed out waiting for backlinks"
+    )
+    return result, err
+  end
+
+  before_each(function()
+    dir = vim.fn.tempname()
+    vim.fn.mkdir(vim.fs.joinpath(dir, "daily"), "p")
+    snot.setup({ directory = dir, daily_directory = "daily" })
+    write(vim.fs.joinpath(dir, "20240101__target.md"), { "links to self: [[20240101__target]]" })
+    write(vim.fs.joinpath(dir, "20240102__a.md"), { "intro", "see [[20240101__target]]" })
+    write(vim.fs.joinpath(dir, "20240103__b.md"), { "aliased [[20240101__target|the target]]" })
+    write(vim.fs.joinpath(dir, "20240104__c.md"), { "not a link: [[20240101__target-2]] or 20240101__target" })
+    write(vim.fs.joinpath(dir, "daily", "20240105.md"), { "- [[20240101__target]] from a daily" })
+  end)
+
+  after_each(function()
+    vim.cmd("silent! %bwipeout!")
+    vim.fn.delete(dir, "rf")
+  end)
+
+  it("finds plain and aliased links, newest first, skipping the note itself", function()
+    local found = assert(backlinks("20240101__target"))
+    assert.are.same({
+      {
+        path = vim.fs.joinpath(dir, "daily", "20240105.md"),
+        lnum = 1,
+        col = 3,
+        text = "- [[20240101__target]] from a daily",
+      },
+      {
+        path = vim.fs.joinpath(dir, "20240103__b.md"),
+        lnum = 1,
+        col = 9,
+        text = "aliased [[20240101__target|the target]]",
+      },
+      { path = vim.fs.joinpath(dir, "20240102__a.md"), lnum = 2, col = 5, text = "see [[20240101__target]]" },
+    }, found)
+  end)
+
+  it("accepts a path as well as a stem", function()
+    assert.are.equal(3, #assert(backlinks(vim.fs.joinpath(dir, "20240101__target.md"))))
+  end)
+
+  it("returns nothing for an unlinked note", function()
+    assert.are.same({}, backlinks("20240104__c"))
+  end)
+
+  it("hands the links to the configured picker", function()
+    local got
+    snot.setup({
+      directory = dir,
+      daily_directory = "daily",
+      picker = function(items, opts)
+        got = { items = items, prompt = opts.prompt }
+      end,
+    })
+    vim.cmd.edit(vim.fs.joinpath(dir, "20240101__target.md"))
+    vim.cmd("Snot backlinks")
+    assert(vim.wait(5000, function()
+      return got ~= nil
+    end))
+    assert.are.equal("Links to 20240101__target", got.prompt)
+    assert.are.equal(3, #got.items)
+  end)
+
+  it("can fill the quickfix list", function()
+    snot.setup({ directory = dir, daily_directory = "daily", picker = "quickfix" })
+    vim.cmd("Snot backlinks 20240101__target")
+    assert(vim.wait(5000, function()
+      return #vim.fn.getqflist() > 0
+    end))
+    local qf = vim.fn.getqflist()
+    assert.are.equal(3, #qf)
+    assert.are.equal(vim.fs.joinpath(dir, "daily", "20240105.md"), vim.api.nvim_buf_get_name(qf[1].bufnr))
+    vim.cmd("cclose")
+  end)
+
+  it("refuses to run outside a note", function()
+    local _, err = quietly(snot.find_backlinks)
+    assert.are.equal("the current buffer is not a note", err)
+  end)
+
+  it("rejects unknown pickers", function()
+    quietly(function()
+      snot.setup({ directory = dir, picker = "nope" })
+    end)
+    assert.is_nil(snot.config().picker)
   end)
 end)

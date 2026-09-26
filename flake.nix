@@ -24,6 +24,7 @@
           default = pkgs.mkShell {
             packages = [
               pkgs.neovim
+              pkgs.ripgrep
               lua
               pkgs.stylua
               pkgs.lua-language-server

@@ -10,7 +10,7 @@ end, {
   complete = function(arg_lead, cmdline)
     return require("snot.commands").complete(arg_lead, cmdline)
   end,
-  desc = "Snot: new | daily [date] | dir | tag [tag]",
+  desc = "Snot: new | daily [date] | dir | tag [tag] | backlinks [note]",
 })
 
 vim.keymap.set("n", "<Plug>(snot-new)", function()
@@ -28,3 +28,7 @@ end, { desc = "Snot: open notes directory" })
 vim.keymap.set("n", "<Plug>(snot-tag)", function()
   require("snot").find_by_tag()
 end, { desc = "Snot: find notes by tag" })
+
+vim.keymap.set("n", "<Plug>(snot-backlinks)", function()
+  require("snot").find_backlinks()
+end, { desc = "Snot: notes linking to this one" })

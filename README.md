@@ -5,7 +5,8 @@ Simple dated markdown notes for Neovim.
 - Daily notes: `~/notes/20240102.md`
 - Titled notes: `~/notes/20240102__my-idea.md`
 - New notes open pre-filled from a template and aren't written until you save.
-- Tags in TOML front matter, searchable with [telescope.nvim](https://github.com/nvim-telescope/telescope.nvim) (optional).
+- Tags in TOML front matter, searchable in your picker of choice.
+- `[[20240102__my-idea]]` links between notes, with backlinks in your picker (needs [ripgrep](https://github.com/BurntSushi/ripgrep)).
 
 Requires Neovim 0.11+.
 
@@ -36,6 +37,8 @@ vim.g.snot = {
   date_format = "%Y%m%d",
   extension = ".md",
   open_cmd = "edit", -- or "vsplit", "tabedit", "botright split", ...
+  picker = nil, -- tag/backlinks picker: "telescope", "fzf-lua", "snacks", "mini.pick", "quickfix",
+                -- "select" or a function; unset uses the first one installed
 }
 ```
 
@@ -44,12 +47,13 @@ See `:help snot-templates` to customise the note template.
 
 ## Usage
 
-| Command              | Action                                                             |
-| -------------------- | ------------------------------------------------------------------ |
-| `:Snot new [title]`  | New note (prompts for a title if none given)                       |
-| `:Snot daily [date]` | Daily note: `today`, `yesterday`, `tomorrow`, `-3`, `+1` or a date |
-| `:Snot dir`          | Open the notes directory                                           |
-| `:Snot tag [tag]`    | Find notes by tag with Telescope                                   |
+| Command                  | Action                                                             |
+| ------------------------ | ------------------------------------------------------------------ |
+| `:Snot new [title]`      | New note (prompts for a title if none given)                       |
+| `:Snot daily [date]`     | Daily note: `today`, `yesterday`, `tomorrow`, `-3`, `+1` or a date |
+| `:Snot dir`              | Open the notes directory                                           |
+| `:Snot tag [tag]`        | Find notes by tag (pick a tag if none given)                       |
+| `:Snot backlinks [note]` | Find notes linking to a note (default: the current one)            |
 
 Window modifiers work too: `:vertical Snot daily`, `:tab Snot new Idea`.
 
@@ -61,6 +65,7 @@ No mappings are set by default. Use the `<Plug>` mappings or the Lua API:
 vim.keymap.set("n", "<leader>pd", "<Plug>(snot-daily)")
 vim.keymap.set("n", "<leader>pn", "<Plug>(snot-new)")
 vim.keymap.set("n", "<leader>pt", "<Plug>(snot-tag)")
+vim.keymap.set("n", "<leader>pb", "<Plug>(snot-backlinks)")
 
 vim.keymap.set("n", "<leader>pf", function()
   require("telescope.builtin").find_files({ cwd = require("snot").directory() })

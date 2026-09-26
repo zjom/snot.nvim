@@ -65,11 +65,26 @@ function M.notes_with_tag(tag)
   return require("snot.store").notes_with_tag(tag)
 end
 
---- Find notes by tag with Telescope. Without a tag, pick one from all tags first.
+--- Pick from the notes tagged `tag` with the configured picker. Without a tag,
+--- choose one from all tags first.
 ---@param tag? string
----@param opts? table telescope picker options (layout_config, etc.)
-function M.find_by_tag(tag, opts)
-  return require("snot.telescope").find_by_tag(tag, opts)
+function M.find_by_tag(tag)
+  return require("snot.find").by_tag(tag)
+end
+
+--- Find links to a note, `[[stem]]` or `[[stem|alias]]`, in the background.
+--- Calls `on_done(locations)` newest note first, or `on_done(nil, err)`.
+---@param note string stem or path of the linked note
+---@param on_done fun(locations?: snot.Location[], err?: string)
+function M.backlinks(note, on_done)
+  return require("snot.store").backlinks(note, on_done)
+end
+
+--- Pick from the notes linking to `note` (stem or path; default: the current note)
+--- with the configured picker.
+---@param note? string
+function M.find_backlinks(note)
+  return require("snot.find").backlinks(note)
 end
 
 return M

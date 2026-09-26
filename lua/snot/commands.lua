@@ -69,12 +69,22 @@ local subcommands = {
     end,
   },
   tag = {
-    desc = "find notes by tag with Telescope (pick a tag if none given)",
+    desc = "find notes by tag (pick a tag if none given)",
     impl = function(args)
       require("snot").find_by_tag(args)
     end,
     complete = function(lead)
       return filter_prefix(require("snot.store").tags(), lead)
+    end,
+  },
+  backlinks = {
+    desc = "find notes linking to a note (default: the current one)",
+    impl = function(args)
+      require("snot").find_backlinks(args)
+    end,
+    complete = function(lead)
+      local store = require("snot.store")
+      return filter_prefix(vim.tbl_map(store.stem, store.list()), lead)
     end,
   },
 }

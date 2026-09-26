@@ -10,6 +10,9 @@
 ---@field extension string   file extension for notes, including the dot
 ---@field open_cmd string    Ex command used to open notes, e.g. "edit", "vsplit", "tabedit", "botright split"
 ---@field templates table<string, string>
+---@field picker? snot.PickerName | snot.PickerFn picker for tags and backlinks. Unset: first one installed
+
+---@alias snot.PickerName "telescope" | "fzf-lua" | "snacks" | "mini.pick" | "quickfix" | "select"
 
 ---@class snot.UserConfig
 ---@field directory? string
@@ -18,6 +21,7 @@
 ---@field extension? string
 ---@field open_cmd? string
 ---@field templates? table<string, string>
+---@field picker? snot.PickerName | snot.PickerFn
 
 local M = {}
 
@@ -59,6 +63,9 @@ function M.validate(cfg)
     for name, template in pairs(cfg.templates) do
       vim.validate("templates." .. tostring(name), template, "string")
     end
+    vim.validate("picker", cfg.picker, function(p)
+      return type(p) == "function" or require("snot.picker").backends[p] ~= nil
+    end, true, "a picker name or function")
   end)
 end
 
