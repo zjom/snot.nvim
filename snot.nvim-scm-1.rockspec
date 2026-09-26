@@ -26,6 +26,6 @@ build = {
     "doc",
     "ftplugin",
     "plugin",
-    "syntax",
+    "queries",
   },
 }

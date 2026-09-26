@@ -37,6 +37,15 @@ parsers from https://github.com/zjom/tree-sitter-snot. snot registers them
 with nvim-treesitter (main branch), so `:TSInstall snot` installs both along
 with their queries. Without the parsers, notes are not highlighted.
 
+                                                              *snot-conceal*
+A link with a label is shown as its label: `[[daily/20240102#standup|standup]]`
+reads as "standup". snot sets 'conceallevel' to 2 in notes and leaves
+'concealcursor' alone, so by default the cursor line shows the whole link for
+editing. To change either, set it in `after/ftplugin/snot.lua`, e.g. to
+always show links in full: >lua
+    vim.opt_local.conceallevel = 0
+<
+
 Requires Neovim 0.11 or later. Run |:checkhealth| `snot` to verify your setup.
 
 ==============================================================================

@@ -481,4 +481,32 @@ describe("treesitter", function()
     assert.are.same({ "snot_inline" }, parsers.snot.requires)
     assert.are.equal("tree-sitter-snot-inline", parsers.snot_inline.install_info.location)
   end)
+
+  it("sets conceallevel in notes", function()
+    vim.cmd.edit(vim.fn.tempname() .. ".snot")
+    assert.are.equal(2, vim.wo.conceallevel)
+    vim.cmd("bwipeout!")
+  end)
+
+  it("conceals the target of a labelled link", function()
+    if not require("snot.treesitter").has_parser("snot_inline") then
+      pending("snot_inline parser not installed")
+      return
+    end
+    vim.cmd.edit(vim.fn.tempname() .. ".snot")
+    vim.api.nvim_buf_set_lines(0, 0, -1, false, { "[[a#x|Label]] [[plain]]" })
+    vim.treesitter.get_parser(0):parse(true)
+    local concealed = {}
+    for col = 0, 22 do
+      for _, cap in ipairs(vim.treesitter.get_captures_at_pos(0, 0, col)) do
+        if cap.metadata.conceal then
+          concealed[#concealed + 1] = col
+          break
+        end
+      end
+    end
+    -- "[[a#x|" and "]]", but not the label or the unlabelled link.
+    assert.are.same({ 0, 1, 2, 3, 4, 5, 11, 12 }, concealed)
+    vim.cmd("bwipeout!")
+  end)
 end)

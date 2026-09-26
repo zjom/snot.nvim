@@ -49,6 +49,8 @@ For highlighting, install the tree-sitter parsers. snot registers them with
 
 installs `snot` and `snot_inline` along with their queries. snot starts tree-sitter in note buffers itself.
 
+Links with a label, like `[[projects/atlas#risks|risks]]`, are shown as just the label. snot sets `conceallevel=2` in notes; the cursor line still shows the full link (see `'concealcursor'`). Override either in `after/ftplugin/snot.lua`.
+
 ## Configuration
 
 Set `vim.g.snot` before first use (these are the defaults):
