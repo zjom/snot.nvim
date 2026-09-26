@@ -9,7 +9,7 @@ local M = {}
 ---@class snot.CreateNoteOpts
 ---@field title?    string            required unless is_daily
 ---@field content?  string
----@field tags?     string | string[] list, or a comma/space separated string
+---@field tags?     string | string[] list, or a comma/space separated string; written as `@tag` flags
 ---@field template? string            name of a template in config.templates
 ---@field is_daily? boolean
 ---@field date?     string            date in config.date_format; defaults to today
@@ -29,6 +29,10 @@ function M.create(opts)
   end
   if not opts.is_daily and (opts.title == nil or opts.title == "") then
     return util.fail("a title is required for non-daily notes")
+  end
+  local tags, terr = util.normalize_tags(opts.tags)
+  if not tags then
+    return util.fail(terr --[[@as string]])
   end
 
   -- Create the folder now so a later :w doesn't fail with E212.
@@ -55,12 +59,13 @@ function M.create(opts)
     path = store.path(("%s__%d%06d"):format(stem, sec, usec), dir)
   end
 
-  local tags = util.normalize_tags(opts.tags)
   local text = util.render(template, {
     title = title,
-    title_toml = util.toml_string(title),
     date = date,
-    tags = "[" .. table.concat(vim.tbl_map(util.toml_string, tags), ", ") .. "]",
+    created = os.date("%Y-%m-%d"),
+    tags = table.concat(vim.tbl_map(function(t)
+      return " @" .. t
+    end, tags)),
     content = opts.content,
   })
   local lines = vim.split(text, "\n", { plain = true })

@@ -7,7 +7,7 @@ source = {
 }
 
 description = {
-  summary = "Simple dated markdown notes for Neovim",
+  summary = "Simple dated notes in Simple Note Format for Neovim",
   homepage = "https://github.com/zjom/snot.nvim",
   license = "Unlicense",
 }
@@ -24,6 +24,8 @@ build = {
   type = "builtin",
   copy_directories = {
     "doc",
+    "ftplugin",
     "plugin",
+    "syntax",
   },
 }

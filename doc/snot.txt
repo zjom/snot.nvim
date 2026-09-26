@@ -1,4 +1,4 @@
-*snot.txt*                                      Simple dated markdown notes
+*snot.txt*                       Simple dated notes in Simple Note Format
 
 ==============================================================================
 CONTENTS                                                       *snot-contents*
@@ -9,24 +9,28 @@ CONTENTS                                                       *snot-contents*
   4. Mappings .................................... |snot-mappings|
   5. Lua API ..................................... |snot-api|
   6. Templates ................................... |snot-templates|
+  7. Note format ................................. |snot-format|
 
 ==============================================================================
 1. INTRODUCTION                                            *snot-introduction*
 
-snot keeps notes as plain files in a single directory:
+snot keeps notes as plain text files in Simple Note Format (|snot-format|),
+in a notes directory:
 
-  - Daily notes are named after their date, e.g. `20240102.md`.
-  - Other notes are named `{date}__{slug}.md`, e.g. `20240102__my-idea.md`.
+  - Daily notes are named after their date, e.g. `20240102.snot`.
+  - Other notes are named `{date}__{slug}.snot`, e.g. `20240102__my-idea.snot`.
 
 New notes open in a buffer pre-filled from a template. Nothing is written to
 disk until you save, so an abandoned note leaves no file behind.
 
-Notes can carry tags in TOML front matter, which |:Snot| `tag` searches with
-the |snot-picker|.
+Tags are metadata flags such as `@work`, written on any line of a note. They
+tag the file, heading, list item or table row that owns the line.
+|:Snot| `tag` finds where a tag is set with the |snot-picker|.
 
-Notes link to each other with `[[stem]]` or `[[stem|alias]]`, where the stem
-is the file name without its extension, e.g. `[[20240102__my-idea]]`.
-|:Snot| `backlinks` lists the notes linking to one (requires ripgrep).
+Notes link to each other with `[[path]]`, where the path is relative to the
+notes directory and has no extension, e.g. `[[20240102__my-idea]]` or
+`[[daily/20240102#standup|standup]]`. |:Snot| `backlinks` lists the notes
+linking to one (requires ripgrep). `gf` on a link opens the note.
 
 Requires Neovim 0.11 or later. Run |:checkhealth| `snot` to verify your setup.
 
@@ -41,27 +45,30 @@ plugin is first used:
     directory = "~/notes",   -- folder containing notes
     daily_directory = nil,   -- folder for daily notes, see below
     date_format = "%Y%m%d",  -- strftime format for dates in file names
-    extension = ".md",       -- note file extension, including the dot
+    extension = ".snot",     -- note file extension, including the dot
     open_cmd = "edit",       -- Ex command used to open notes
     templates = { ... },     -- see |snot-templates|
     picker = nil,            -- picker for tags and backlinks, see below
   }
 <
-`daily_directory` puts daily notes in their own folder. A relative path is
-inside `directory` (e.g. `"daily"` means `~/notes/daily`); an absolute or
-`~` path is used as-is. When unset, daily notes go in `directory`.
+`daily_directory` puts daily notes in their own folder inside `directory`,
+e.g. `"daily"` means `~/notes/daily`. It must be a relative path without
+`..`, since links are relative to `directory`. When unset, daily notes go in
+`directory`.
+
+Notes are every file with the note extension under `directory`, in any
+folder except hidden ones. They get the `snot` filetype.
 
                                                                 *snot-picker*
 `picker` chooses how tag searches and backlinks are shown: `"telescope"`, `"fzf-lua"`,
 `"snacks"`, `"mini.pick"`, `"quickfix"` or `"select"` (|vim.ui.select()|).
 When unset, the first of telescope, fzf-lua, snacks and mini.pick that is
 installed is used (snacks and mini.pick once set up), else `"select"`.
-It can also be a function called with the notes to pick from and
+It can also be a function called with the places to pick from and
 `{ prompt }`; choosing a tag then uses |vim.ui.select()|:
 >lua
   picker = function(items, opts)
-    -- items: list of { path, lnum?, col?, text? }; tag searches give
-    -- only `path`, backlinks give all four
+    -- items: list of { path, lnum?, col?, text? }
   end
 <
                                                                 *snot.setup()*
@@ -84,12 +91,14 @@ Invalid options are reported and the defaults are used instead.
 
 :Snot dir               Open the notes directory.
 
-:Snot tag [tag]         Find notes tagged [tag] with the |snot-picker|.
-                        Without a tag, pick one from all tags first.
+:Snot tag [tag]         Find every place [tag] is set, e.g. `work` or
+                        `@work`, with the |snot-picker|. Without a tag,
+                        pick one from all tags first.
 
-:Snot backlinks [note]  Find notes linking to [note], a stem such as
-                        `20240102__my-idea`, or to the current note. Uses
-                        the |snot-picker|. Only saved notes are searched.
+:Snot backlinks [note]  Find links to [note], a link path such as
+                        `20240102__my-idea` or `daily/20240102`, or to the
+                        current note. Uses the |snot-picker|. Only saved
+                        notes are searched.
 
 `new`, `daily` and `dir` accept window modifiers, which open the note in a
 split instead of using `open_cmd`:
@@ -106,7 +115,7 @@ snot defines no key mappings. These <Plug> mappings are available:
   *<Plug>(snot-new)*     Prompt for a title and create a note.
   *<Plug>(snot-daily)*   Open today's daily note.
   *<Plug>(snot-dir)*     Open the notes directory.
-  *<Plug>(snot-tag)*     Pick a tag, then a note carrying it.
+  *<Plug>(snot-tag)*     Pick a tag, then a place it is set.
   *<Plug>(snot-backlinks)* Find notes linking to the current one.
 
 Example:
@@ -127,7 +136,8 @@ create_note({opts})                                       *snot.create_note()*
     {opts} fields, all optional:
       - title     (string) required unless `is_daily`
       - content   (string) text for `${content}`
-      - tags      (string|string[]) list, or comma/space separated string
+      - tags      (string|string[]) list, or comma/space separated string;
+                  each must be a metadata key, e.g. `work` or `@work`
       - template  (string) template name, default `"default"`
       - is_daily  (boolean) create a daily note
       - date      (string) date in `date_format`, default today
@@ -147,19 +157,25 @@ config()                                                       *snot.config()*
     The resolved configuration table.
 
 tags()                                                           *snot.tags()*
-    All tags used across notes, sorted.
+    All tags used across notes, sorted. A tag is a flag token, `@tag` (or
+    `@tag:true`), in any scope. Tokens in code and math are ignored.
 
 notes_with_tag({tag})                                  *snot.notes_with_tag()*
-    Full paths of notes carrying {tag}, newest first.
+    Full paths of notes where {tag} is set, newest first.
+
+tag_locations({tag})                                    *snot.tag_locations()*
+    Every place {tag} is set, as a list of `{ path, lnum, col, text }`,
+    newest note first.
 
 find_by_tag([{tag}])                                      *snot.find_by_tag()*
-    Pick from the notes carrying {tag} with the |snot-picker|. Without a tag,
-    pick one from all tags first.
+    Pick from the places {tag} is set with the |snot-picker|. Without a
+    tag, pick one from all tags first.
 
 backlinks({note}, {on_done})                                *snot.backlinks()*
-    Find links to {note} (stem or path) in saved notes with ripgrep, in the
-    background. Calls {on_done} with a list of `{ path, lnum, col, text }`,
-    newest note first, or with `nil, err`.
+    Find links to {note} (link path or file path) in saved notes, in the
+    background: `[[note]]`, `[[note#anchor]]` and `[[note|label]]`. Links in
+    code and math don't count. Calls {on_done} with a list of
+    `{ path, lnum, col, text }`, newest note first, or with `nil, err`.
 
 find_backlinks([{note}])                               *snot.find_backlinks()*
     Pick from the notes linking to {note}, default the current note, with
@@ -171,26 +187,55 @@ find_backlinks([{note}])                               *snot.find_backlinks()*
 `templates` maps names to template strings. `${name}` placeholders are
 replaced when a note is created; unknown placeholders become empty.
 
-  `${title}`       note title (the date, for daily notes)
-  `${title_toml}`  title as a quoted TOML string
+  `${title}`       note title as typed (the date, for daily notes)
   `${date}`        note date in `date_format`
-  `${tags}`        tags as a TOML array, e.g. `["a", "b"]`
+  `${created}`     today's date in ISO 8601, e.g. `2024-01-02`
+  `${tags}`        tags as flags, each preceded by a space, e.g. ` @a @b`
   `${content}`     the `content` option
 
 The cursor is placed at the end of the rendered template. The default
 template is:
 >
-  +++
-  title = ${title_toml}
-  date = ${date}
-  tags = ${tags}
-  +++
+  @created:${created}${tags}
 
   # ${title}
 
   ${content}
 <
-|snot.tags()| reads the `tags = [...]` line from `+++` front matter at the
-top of each note, so keep that format if you want tag search to work.
+The first line holds file metadata. A title may itself contain inline
+syntax, e.g. `:Snot new Kickoff @project:atlas` gives the heading
+`# Kickoff @project:atlas`; tokens are left out of the file name.
+
+==============================================================================
+7. NOTE FORMAT                                                   *snot-format*
+
+Notes are written in Simple Note Format, specified in `NOTE_SPEC.md` in the
+plugin's repository. In brief:
+>
+  @area:work @created:2024-01-02
+
+  # Atlas kickoff @project:atlas @person:[bob, priya]
+
+  Met with Bob about the *new* timeline. See [[projects/atlas#risks]].
+
+  ## Follow-ups @id:follow-ups
+  - [ ] Send Bob revised plan @due:2024-01-09 @urgent
+    - [x] Find a room
+  - [-] Chase old invoice
+
+  | Milestone | Due        | Owner      |
+  |-----------|------------|------------|
+  | Beta      | 2024-10-31 | @owner:bob |
+<
+  - `#` to `######` then a space start a heading.
+  - `- ` and `1. ` start list items; `[ ]`, `[x]` and `[-]` make tasks.
+  - `@key`, `@key:value` and `@key:[a, b]` are metadata. It belongs to the
+    heading, list item or table row on that line, or to the file when above
+    the first heading. Nothing is inherited.
+  - `[[path]]`, `[[path#anchor]]` and `[[path|label]]` link to notes; an
+    anchor is an `@id` or a heading's slug. `[[https://...]]` links to URLs.
+  - `*bold*`, `_underline_`, `` `code` ``, `$math$`, and ``` and `$$` blocks.
+    Code and math are verbatim: nothing inside them is metadata or a link.
+  - `\` before punctuation escapes it, e.g. `\@not-metadata`.
 
  vim:tw=78:ts=8:noet:ft=help:norl:

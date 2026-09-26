@@ -3,6 +3,23 @@ if vim.g.loaded_snot then
 end
 vim.g.loaded_snot = true
 
+-- Notes are in Simple Note Format whatever their extension, so detect them by
+-- location too. Non-negative priority runs before extension matching, in case
+-- `extension` is one Neovim knows (e.g. .txt).
+vim.filetype.add({
+  extension = { snot = "snot" },
+  pattern = {
+    [".*"] = {
+      function(path)
+        if require("snot.store").is_note(path) then
+          return "snot"
+        end
+      end,
+      { priority = 10 },
+    },
+  },
+})
+
 vim.api.nvim_create_user_command("Snot", function(o)
   require("snot.commands").run(o)
 end, {
@@ -27,7 +44,7 @@ end, { desc = "Snot: open notes directory" })
 
 vim.keymap.set("n", "<Plug>(snot-tag)", function()
   require("snot").find_by_tag()
-end, { desc = "Snot: find notes by tag" })
+end, { desc = "Snot: find where a tag is set" })
 
 vim.keymap.set("n", "<Plug>(snot-backlinks)", function()
   require("snot").find_backlinks()

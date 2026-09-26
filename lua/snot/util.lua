@@ -11,29 +11,33 @@ function M.render(str, vars)
   end))
 end
 
----@param s string
----@return string
-function M.toml_string(s)
-  return '"' .. s:gsub("\\", "\\\\"):gsub('"', '\\"') .. '"'
-end
-
+--- Tags as metadata keys: a leading "@" is dropped and letters are lowercased.
 ---@param tags? string | string[] list, or a comma/space separated string
----@return string[]
+---@return string[]? tags, string? err
 function M.normalize_tags(tags)
   if tags == nil then
     return {}
   end
   if type(tags) == "string" then
-    return vim.split(tags, "[,%s]+", { trimempty = true })
+    tags = vim.split(tags, "[,%s]+", { trimempty = true })
   end
-  return tags
+  local out = {}
+  for _, tag in ipairs(tags) do
+    tag = tag:gsub("^@", ""):lower()
+    if not require("snot.format").is_key(tag) then
+      return nil, ("invalid tag %q: use a letter, then letters, digits, - or _"):format(tag)
+    end
+    out[#out + 1] = tag
+  end
+  return out
 end
 
---- Turn a free-form title into something safe to use as a file name.
+--- Turn a free-form title into something safe to use as a file name: its
+--- heading slug (NOTE_SPEC.md, section 7.3).
 ---@param s string
 ---@return string
 function M.slugify(s)
-  local slug = s:lower():gsub("[^%w_%-]+", "-"):gsub("^%-+", ""):gsub("%-+$", "")
+  local slug = require("snot.format").slug(s)
   return slug ~= "" and slug or "untitled"
 end
 

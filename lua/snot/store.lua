@@ -1,6 +1,8 @@
---- Reading notes from the notes directory: listing files and their front-matter tags.
+--- Reading notes from the notes directory: listing files, their tags and the
+--- links between them.
 
 local config = require("snot.config")
+local format = require("snot.format")
 
 local M = {}
 
@@ -43,45 +45,58 @@ local function note_names(dir)
   return out
 end
 
---- Folders holding notes: the notes directory, plus `daily_directory` if it differs.
----@return string[]
-local function dirs()
-  local out = { config.get().directory }
-  if M.daily_dir() ~= out[1] then
-    out[2] = M.daily_dir()
-  end
-  return out
+---@param a string
+---@param b string
+---@return boolean
+local function newest_first(a, b)
+  return vim.fs.basename(a) > vim.fs.basename(b)
 end
 
---- A note's file name without its extension, e.g. "20240102__my-idea".
---- Also accepts a bare stem.
+--- A note's link path (NOTE_SPEC.md, section 7.2): its path relative to the
+--- notes directory, without the extension, e.g. "daily/20240102". Also accepts
+--- a link path, returned as-is.
 ---@param path string
 ---@return string
-function M.stem(path)
-  local name, ext = vim.fs.basename(path), config.get().extension
-  return vim.endswith(name, ext) and name:sub(1, #name - #ext) or name
+function M.link_path(path)
+  local ext = config.get().extension
+  local rel = vim.fs.relpath(config.get().directory, vim.fs.abspath(vim.fs.normalize(path)))
+  if not rel or not vim.endswith(path, ext) then
+    return path
+  end
+  return rel:sub(1, #rel - #ext)
 end
 
---- True if `path` is a note: a file with the note extension in a notes folder.
+--- True if `path` is a note: a file with the note extension under the notes
+--- directory, outside hidden folders.
 ---@param path string
 ---@return boolean
 function M.is_note(path)
   path = vim.fs.normalize(path)
-  return vim.endswith(path, config.get().extension) and vim.tbl_contains(dirs(), vim.fs.dirname(path))
+  local rel = vim.fs.relpath(config.get().directory, path)
+  return rel ~= nil and vim.endswith(path, config.get().extension) and not ("/" .. rel):find("/%.")
 end
 
---- Full paths of all notes, including daily notes in `daily_directory`, newest first.
+--- Full paths of all notes under the notes directory, including daily notes,
+--- newest first. Hidden files and folders are skipped.
 ---@return string[]
 function M.list()
+  local root, ext = config.get().directory, config.get().extension
   local out = {}
-  for _, dir in ipairs(dirs()) do
-    for _, name in ipairs(note_names(dir)) do
-      out[#out + 1] = vim.fs.joinpath(dir, name)
+  if vim.fn.isdirectory(root) ~= 1 then
+    return out
+  end
+  local entries = vim.fs.dir(root, {
+    depth = math.huge,
+    skip = function(name)
+      return not vim.fs.basename(name):match("^%.")
+    end,
+  })
+  for name, kind in entries do
+    if kind == "file" and vim.endswith(name, ext) and not vim.fs.basename(name):match("^%.") then
+      out[#out + 1] = vim.fs.joinpath(root, name)
     end
   end
-  table.sort(out, function(a, b)
-    return vim.fs.basename(a) > vim.fs.basename(b)
-  end)
+  table.sort(out, newest_first)
   return out
 end
 
@@ -102,36 +117,39 @@ function M.daily_dates()
   return out
 end
 
---- Read the tags from a note's +++ front matter (`tags = ["a", "b"]`).
---- Only the front matter is read, so this stays fast on long notes.
+---@class snot.Location
+---@field path string
+---@field lnum integer 1-based
+---@field col  integer 1-based byte column
+---@field text string  the matching line
+
+--- Where the tags in a note are: every flag token, `@tag`, in any scope.
+---@param path string
+---@return { tag: string, loc: snot.Location }[]
+local function tags_in(path)
+  local tokens, _, lines = format.parse_file(path)
+  local out = {}
+  for _, tok in ipairs(tokens) do
+    if format.is_flag(tok) then
+      local text = lines[tok.lnum]:gsub("\r$", "")
+      out[#out + 1] = { tag = tok.key, loc = { path = path, lnum = tok.lnum, col = tok.col, text = text } }
+    end
+  end
+  return out
+end
+
+--- The tags in a note: its flag tokens (`@tag`), from any scope, deduplicated.
 ---@param path string
 ---@return string[]
 function M.read_tags(path)
-  local f = io.open(path, "r")
-  if not f then
-    return {}
-  end
-  local tags, in_front_matter = {}, false
-  for line in f:lines() do
-    if line == "+++" then
-      if in_front_matter then
-        break -- end of front matter
-      end
-      in_front_matter = true
-    elseif not in_front_matter then
-      break -- no front matter at the top of the file
-    else
-      local list = line:match("^%s*tags%s*=%s*%[(.*)%]%s*$")
-      if list then
-        for tag in list:gmatch('"([^"]*)"') do
-          tags[#tags + 1] = tag
-        end
-        break
-      end
+  local seen, out = {}, {}
+  for _, t in ipairs(tags_in(path)) do
+    if not seen[t.tag] then
+      seen[t.tag] = true
+      out[#out + 1] = t.tag
     end
   end
-  f:close()
-  return tags
+  return out
 end
 
 --- All tags used across notes, sorted.
@@ -148,90 +166,88 @@ function M.tags()
   return tags
 end
 
---- Full paths of notes carrying `tag` (exact match), newest first.
+--- Every place `tag` is set, newest note first, then in reading order.
+---@param tag string
+---@return snot.Location[]
+function M.tag_locations(tag)
+  local out = {}
+  for _, path in ipairs(M.list()) do
+    for _, t in ipairs(tags_in(path)) do
+      if t.tag == tag then
+        out[#out + 1] = t.loc
+      end
+    end
+  end
+  return out
+end
+
+--- Full paths of notes carrying `tag` in any scope, newest first.
 ---@param tag string
 ---@return string[]
 function M.notes_with_tag(tag)
   local out = {}
-  for _, path in ipairs(M.list()) do
-    if vim.tbl_contains(M.read_tags(path), tag) then
-      out[#out + 1] = path
+  for _, loc in ipairs(M.tag_locations(tag)) do
+    if out[#out] ~= loc.path then
+      out[#out + 1] = loc.path
     end
   end
   return out
 end
 
----@class snot.Location
----@field path string
----@field lnum integer 1-based
----@field col  integer 1-based byte column
----@field text string  the matching line
-
---- Turn ripgrep's --json output into locations, skipping links from the note itself.
----@param stdout string
----@param stem string
+--- Links to the note `target` (a link path) in the given files, skipping links
+--- from the note itself. Newest note first, then in reading order.
+---@param files string[]
+---@param target string
 ---@return snot.Location[]
-local function parse_matches(stdout, stem)
+local function links_to(files, target)
+  table.sort(files, newest_first)
   local out = {}
-  for line in vim.gsplit(stdout, "\n", { plain = true, trimempty = true }) do
-    local ok, msg = pcall(vim.json.decode, line)
-    local data = ok and msg.type == "match" and msg.data
-    -- path.text/lines.text are absent for non-UTF-8 content
-    if data and data.path.text and data.lines.text and M.stem(data.path.text) ~= stem then
-      out[#out + 1] = {
-        path = data.path.text,
-        lnum = data.line_number,
-        col = data.submatches[1].start + 1,
-        text = (data.lines.text:gsub("\r?\n$", "")),
-      }
+  for _, path in ipairs(files) do
+    if M.link_path(path) ~= target then
+      local _, links, lines = format.parse_file(path)
+      for _, link in ipairs(links) do
+        if format.note_target(link.target) == target then
+          local text = lines[link.lnum]:gsub("\r$", "")
+          out[#out + 1] = { path = path, lnum = link.lnum, col = link.col, text = text }
+        end
+      end
     end
   end
-  local names = {}
-  for _, loc in ipairs(out) do
-    names[loc] = vim.fs.basename(loc.path)
-  end
-  table.sort(out, function(a, b)
-    if names[a] ~= names[b] then
-      return names[a] > names[b]
-    end
-    return a.lnum < b.lnum
-  end)
   return out
 end
 
---- Find links to a note, `[[stem]]` or `[[stem|alias]]`, in saved notes. Runs
---- ripgrep in the background and calls `on_done(locations)` on the main loop,
---- newest note first, or `on_done(nil, err)`.
----@param note string stem or path of the linked note
+--- Find links to a note, `[[path]]`, `[[path#anchor]]` or `[[path|label]]`, in
+--- saved notes. Ripgrep finds candidate files in the background, then they are
+--- parsed so that links in code and math don't count. Calls `on_done(locations)`
+--- on the main loop, newest note first, or `on_done(nil, err)`.
+---@param note string link path or file path of the linked note
 ---@param on_done fun(locations?: snot.Location[], err?: string)
 function M.backlinks(note, on_done)
   if vim.fn.executable("rg") ~= 1 then
     return on_done(nil, "ripgrep (rg) is required for backlinks")
   end
-  local stem = M.stem(note)
-  local search = vim.tbl_filter(function(dir)
-    return vim.fn.isdirectory(dir) == 1
-  end, dirs())
-  if #search == 0 then
+  local target = M.link_path(note)
+  local root = config.get().directory
+  if vim.fn.isdirectory(root) ~= 1 then
     return on_done({})
   end
 
   -- --no-config: a user's ripgreprc could change the output format.
-  -- --max-depth 1, --hidden, --no-ignore: search exactly the files M.list() sees.
+  -- --no-ignore without --hidden: search exactly the files M.list() sees.
   -- stylua: ignore
   local cmd = {
-    "rg", "--json", "--no-config", "--max-depth", "1", "--hidden", "--no-ignore",
+    "rg", "--files-with-matches", "--null", "--no-config", "--no-ignore",
     "--glob", "*" .. config.get().extension,
-    "--fixed-strings", "-e", "[[" .. stem .. "]]", "-e", "[[" .. stem .. "|",
-    "--",
+    "--fixed-strings", "-e", target,
+    "--", root,
   }
-  vim.list_extend(cmd, search)
 
   local function on_exit(res)
     if res.code > 1 then -- 1 means no matches
       return on_done(nil, "rg failed: " .. vim.trim(res.stderr or ""))
     end
-    on_done(parse_matches(res.stdout or "", stem))
+    local files = vim.split(res.stdout or "", "\0", { plain = true, trimempty = true })
+    on_done(links_to(files, target))
   end
   vim.system(cmd, { text = true }, vim.schedule_wrap(on_exit))
 end

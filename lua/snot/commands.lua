@@ -69,7 +69,7 @@ local subcommands = {
     end,
   },
   tag = {
-    desc = "find notes by tag (pick a tag if none given)",
+    desc = "find where a tag is set (pick a tag if none given)",
     impl = function(args)
       require("snot").find_by_tag(args)
     end,
@@ -84,7 +84,7 @@ local subcommands = {
     end,
     complete = function(lead)
       local store = require("snot.store")
-      return filter_prefix(vim.tbl_map(store.stem, store.list()), lead)
+      return filter_prefix(vim.tbl_map(store.link_path, store.list()), lead)
     end,
   },
 }

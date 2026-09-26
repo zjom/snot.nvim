@@ -6,7 +6,7 @@ local util = require("snot.util")
 
 local M = {}
 
---- Pick from the notes tagged `tag`. Without a tag, choose one from all tags first.
+--- Pick from the places `tag` is set. Without a tag, choose one from all tags first.
 ---@param tag? string
 function M.by_tag(tag)
   if tag == nil or tag == "" then
@@ -25,17 +25,16 @@ function M.by_tag(tag)
     end)
   end
 
-  local items = vim.tbl_map(function(path)
-    return { path = path }
-  end, store.notes_with_tag(tag))
+  tag = tag:gsub("^@", "")
+  local items = store.tag_locations(tag)
   if #items == 0 then
     vim.notify(("snot: no notes tagged %q"):format(tag), vim.log.levels.INFO)
     return
   end
-  picker.get().pick(items, { prompt = ("Notes tagged %q"):format(tag) })
+  picker.get().pick(items, { prompt = "Tagged @" .. tag })
 end
 
---- Pick from the notes linking to `note` (stem or path; default: the current note).
+--- Pick from the notes linking to `note` (link path or file path; default: the current note).
 ---@param note? string
 function M.backlinks(note)
   if note == nil or note == "" then
@@ -44,16 +43,16 @@ function M.backlinks(note)
       return util.fail("the current buffer is not a note")
     end
   end
-  local stem = store.stem(note)
-  store.backlinks(stem, function(items, err)
+  local target = store.link_path(note)
+  store.backlinks(target, function(items, err)
     if not items then
       return util.fail(err --[[@as string]])
     end
     if #items == 0 then
-      vim.notify(("snot: no notes link to %s"):format(stem), vim.log.levels.INFO)
+      vim.notify(("snot: no notes link to %s"):format(target), vim.log.levels.INFO)
       return
     end
-    picker.get().pick(items, { prompt = ("Links to %s"):format(stem) })
+    picker.get().pick(items, { prompt = ("Links to %s"):format(target) })
   end)
 end
 

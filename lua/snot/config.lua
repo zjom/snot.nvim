@@ -5,7 +5,7 @@
 
 ---@class snot.Config
 ---@field directory string   folder containing notes
----@field daily_directory? string folder for daily notes; relative paths are inside `directory`. Unset: `directory`
+---@field daily_directory? string folder for daily notes, relative to `directory`. Unset: `directory`
 ---@field date_format string strftime format used for daily notes and note prefixes
 ---@field extension string   file extension for notes, including the dot
 ---@field open_cmd string    Ex command used to open notes, e.g. "edit", "vsplit", "tabedit", "botright split"
@@ -29,15 +29,11 @@ local M = {}
 M.defaults = {
   directory = "~/notes",
   date_format = "%Y%m%d",
-  extension = ".md",
+  extension = ".snot",
   open_cmd = "edit",
   templates = {
     default = table.concat({
-      "+++",
-      "title = ${title_toml}",
-      "date = ${date}",
-      "tags = ${tags}",
-      "+++",
+      "@created:${created}${tags}",
       "",
       "# ${title}",
       "",
@@ -55,9 +51,26 @@ local current
 function M.validate(cfg)
   return pcall(function()
     vim.validate("directory", cfg.directory, "string")
-    vim.validate("daily_directory", cfg.daily_directory, "string", true)
+    -- Links are relative to `directory` (NOTE_SPEC.md, section 7.2), so daily
+    -- notes must live inside it to be linkable.
+    vim.validate("daily_directory", cfg.daily_directory, function(d)
+      if d == nil then
+        return true
+      end
+      if type(d) ~= "string" or d == "" or d:match("^[/~]") or d:match("^%a:[/\\]") then
+        return false
+      end
+      for seg in vim.gsplit(d, "[/\\]") do
+        if seg == ".." then
+          return false
+        end
+      end
+      return true
+    end, true, "a relative path inside `directory`")
     vim.validate("date_format", cfg.date_format, "string")
-    vim.validate("extension", cfg.extension, "string")
+    vim.validate("extension", cfg.extension, function(e)
+      return type(e) == "string" and e:match("^%.[^./\\]+$") ~= nil
+    end, 'a file extension including the dot, e.g. ".snot"')
     vim.validate("open_cmd", cfg.open_cmd, "string")
     vim.validate("templates", cfg.templates, "table")
     for name, template in pairs(cfg.templates) do
@@ -86,8 +99,7 @@ local function resolve(opts)
   end
   cfg.directory = vim.fs.normalize(cfg.directory)
   if cfg.daily_directory then
-    local daily = vim.fs.normalize(cfg.daily_directory)
-    cfg.daily_directory = vim.fs.abspath(daily) == daily and daily or vim.fs.joinpath(cfg.directory, daily)
+    cfg.daily_directory = vim.fs.normalize(vim.fs.joinpath(cfg.directory, cfg.daily_directory))
   end
   return cfg
 end

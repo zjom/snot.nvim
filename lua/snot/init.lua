@@ -1,4 +1,4 @@
---- snot.nvim: simple dated markdown notes.
+--- snot.nvim: simple dated notes in Simple Note Format (NOTE_SPEC.md).
 
 local M = {}
 
@@ -58,29 +58,36 @@ function M.tags()
   return require("snot.store").tags()
 end
 
---- Full paths of notes carrying `tag` (exact match), newest first.
+--- Full paths of notes carrying `@tag` in any scope, newest first.
 ---@param tag string
 ---@return string[]
 function M.notes_with_tag(tag)
   return require("snot.store").notes_with_tag(tag)
 end
 
---- Pick from the notes tagged `tag` with the configured picker. Without a tag,
---- choose one from all tags first.
+--- Every place `@tag` is set, newest note first, then in reading order.
+---@param tag string
+---@return snot.Location[]
+function M.tag_locations(tag)
+  return require("snot.store").tag_locations(tag)
+end
+
+--- Pick from the places `tag` is set with the configured picker. Without a
+--- tag, choose one from all tags first.
 ---@param tag? string
 function M.find_by_tag(tag)
   return require("snot.find").by_tag(tag)
 end
 
---- Find links to a note, `[[stem]]` or `[[stem|alias]]`, in the background.
---- Calls `on_done(locations)` newest note first, or `on_done(nil, err)`.
----@param note string stem or path of the linked note
+--- Find links to a note, `[[path]]`, `[[path#anchor]]` or `[[path|label]]`, in
+--- the background. Calls `on_done(locations)` newest note first, or `on_done(nil, err)`.
+---@param note string link path (e.g. "daily/20240102") or file path of the linked note
 ---@param on_done fun(locations?: snot.Location[], err?: string)
 function M.backlinks(note, on_done)
   return require("snot.store").backlinks(note, on_done)
 end
 
---- Pick from the notes linking to `note` (stem or path; default: the current note)
+--- Pick from the notes linking to `note` (link path or file path; default: the current note)
 --- with the configured picker.
 ---@param note? string
 function M.find_backlinks(note)

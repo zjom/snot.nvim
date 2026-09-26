@@ -1,12 +1,26 @@
 # snot.nvim
 
-Simple dated markdown notes for Neovim.
+Simple dated notes for Neovim, written in the [Simple Note Format](NOTE_SPEC.md):
+plain text where headings, lists, tasks, `@metadata` and `[[links]]` are all
+greppable.
 
-- Daily notes: `~/notes/20240102.md`
-- Titled notes: `~/notes/20240102__my-idea.md`
+```
+@created:2024-01-02 @work
+
+# My idea @project:atlas
+
+- [ ] Draft the plan @due:2024-01-09 @urgent
+- See [[daily/20240102]] and [[projects/atlas#risks|the risk list]]
+```
+
+- Daily notes: `~/notes/20240102.snot`
+- Titled notes: `~/notes/20240102__my-idea.snot`
 - New notes open pre-filled from a template and aren't written until you save.
-- Tags in TOML front matter, searchable in your picker of choice.
-- `[[20240102__my-idea]]` links between notes, with backlinks in your picker (needs [ripgrep](https://github.com/BurntSushi/ripgrep)).
+- Tags are `@flags` in any heading, list item, table row or the file itself; find where one is set in your picker of choice.
+- `[[path]]` links between notes, relative to the notes directory, with backlinks in your picker (needs [ripgrep](https://github.com/BurntSushi/ripgrep)).
+- Syntax highlighting, and `gf` to follow a link.
+
+snot is opinionated: notes are always Simple Note Format. Only the file extension is configurable.
 
 Requires Neovim 0.11+.
 
@@ -33,9 +47,9 @@ Set `vim.g.snot` before first use (these are the defaults):
 ```lua
 vim.g.snot = {
   directory = "~/notes",
-  daily_directory = nil, -- e.g. "daily" for ~/notes/daily; unset keeps daily notes in `directory`
+  daily_directory = nil, -- e.g. "daily" for ~/notes/daily; must be inside `directory`
   date_format = "%Y%m%d",
-  extension = ".md",
+  extension = ".snot",
   open_cmd = "edit", -- or "vsplit", "tabedit", "botright split", ...
   picker = nil, -- tag/backlinks picker: "telescope", "fzf-lua", "snacks", "mini.pick", "quickfix",
                 -- "select" or a function; unset uses the first one installed
@@ -52,7 +66,7 @@ See `:help snot-templates` to customise the note template.
 | `:Snot new [title]`      | New note (prompts for a title if none given)                       |
 | `:Snot daily [date]`     | Daily note: `today`, `yesterday`, `tomorrow`, `-3`, `+1` or a date |
 | `:Snot dir`              | Open the notes directory                                           |
-| `:Snot tag [tag]`        | Find notes by tag (pick a tag if none given)                       |
+| `:Snot tag [tag]`        | Find where a tag is set (pick a tag if none given)                 |
 | `:Snot backlinks [note]` | Find notes linking to a note (default: the current one)            |
 
 Window modifiers work too: `:vertical Snot daily`, `:tab Snot new Idea`.

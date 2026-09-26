@@ -1,5 +1,5 @@
 {
-  description = "snot.nvim: simple dated markdown notes for Neovim";
+  description = "snot.nvim: simple dated notes in Simple Note Format for Neovim";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
