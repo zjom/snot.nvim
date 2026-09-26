@@ -1,3 +1,5 @@
+.direnv
+.envrc
 # >>> get-ignore lua (github.com/github/gitignore@356fd7b) >>>
 # Compiled Lua sources
 luac.out
