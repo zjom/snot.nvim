@@ -6,7 +6,7 @@ Simple Note Format (snot) is a line-oriented plain text format for quick-capture
 
 ### 1.1 Design principles
 
-1. **One sigil per concept.** `#` is structure, `@` is metadata, `[[ ]]` is a link, `-` and `N.` are list items, `[ ]` is task state, `|` is a table row, `*` and `_` are emphasis, `` ` `` is code, `$` is math, `\` is escape. No sigil has a second meaning.
+1. **One sigil per concept.** `#` is structure, `@` is metadata, `[[ ]]` is a link, `-`, `+` and `N.` are list items, `[ ]` is task state, `|` is a table row, `*` and `_` are emphasis, `` ` `` is code, `$` is math, `\` is escape. No sigil has a second meaning.
 2. **Line-local.** Every construct is recognisable from its own line. The only exception is code and math blocks, which run between fence lines.
 3. **No inheritance.** Metadata applies only to the scope it is written in.
 4. **Human-readable metadata.** Keys and values are plain words and ISO dates, written inline.
@@ -32,7 +32,7 @@ Every line is exactly one of these, tested in this order:
 | Verbatim  | A code or math block's fence lines and every line between them (section 9) |
 | Blank     | Only whitespace                                                            |
 | Heading   | Starts at column 0 with 1–6 `#` then a space (section 4)                   |
-| List item | Indentation, then `- ` or digits + `. ` (section 5)                        |
+| List item | Indentation, then `- `, `+ ` or digits + `. ` (section 5)                  |
 | Table row | Indentation, then `\|` (section 10)                                        |
 | Text      | Anything else                                                              |
 
@@ -42,7 +42,7 @@ Indentation MUST use spaces; a tab in leading whitespace is an error. One level 
 
 ### 2.4 Escapes
 
-A backslash followed by an ASCII punctuation character produces that character literally and stops it from acting as syntax, e.g. `\@`, `\*`, `\[`, `\#`. A backslash followed by anything else is a literal backslash. Outside code and math (section 9), escapes work everywhere, including at the start of a line (`\# not a heading`).
+A backslash followed by an ASCII punctuation character produces that character literally and stops it from acting as syntax, e.g. `\@`, `\*`, `\[`, `\#`. A backslash followed by anything else is a literal backslash. Outside code and math (section 9), escapes work everywhere, including at the start of a line (`\# not a heading`, `\+ not a list item`).
 
 ## 3. Scopes
 
@@ -78,14 +78,24 @@ A heading line starts at column 0 with 1 to 6 `#` characters, then one space, th
 
 A list item line is indentation, a marker, one space, then content.
 
-| Marker          | Kind      | Example    |
-| --------------- | --------- | ---------- |
-| `-`             | Unordered | `- milk`   |
-| digits then `.` | Ordered   | `12. milk` |
+| Marker          | Kind                     | Example    |
+| --------------- | ------------------------ | ---------- |
+| `-`             | Unordered                | `- milk`   |
+| `+`             | Ordered, implicit number | `+ milk`   |
+| digits then `.` | Ordered, explicit number | `12. milk` |
 
 An item at depth _d_ + 1 is a child of the nearest item above it at depth _d_. An item deeper than depth 0 with no such parent is an error; readers SHOULD treat it as depth 0.
 
-Ordered numbers are kept as written. Readers MUST NOT renumber them. Unordered and ordered items MAY be mixed in one list.
+`+` and `N.` items are both ordered and differ only in how the number is given. Explicit numbers are kept as written; readers MUST NOT renumber them. A `+` item has no written number. A reader that displays one SHOULD use one more than the number of the previous ordered item at the same depth in the same list (written or derived), or 1 if there is none:
+
+```
++ Draft          (1)
++ Review         (2)
+5. Publish       (5)
++ Announce       (6)
+```
+
+Unordered and ordered items, and both ordered markers, MAY be mixed in one list. To start a text line with a literal `- `, `+ ` or `N. `, escape the first character: `\+ 5 points`.
 
 ### 5.2 Tasks
 
@@ -97,12 +107,12 @@ A task is a list item whose content starts with a state box, then a space or end
 | `[x]` | Done      |
 | `[-]` | Cancelled |
 
-The box letter MUST be lowercase. Any other bracketed text, such as `[X]` or `[?]`, is ordinary content. Tasks are list items in every other respect: they nest, may be ordered (`1. [ ] draft`), and carry metadata.
+The box letter MUST be lowercase. Any other bracketed text, such as `[X]` or `[?]`, is ordinary content. Tasks are list items in every other respect: they nest, may be ordered (`+ [ ] draft`, `1. [ ] draft`), and carry metadata.
 
 ```
 - [ ] Book design review @due:2026-10-02
-  - [x] Find a room
-  - [ ] Invite Priya @person:priya
+  + [x] Find a room
+  + [ ] Invite Priya @person:priya
 - [-] Chase old invoice
 ```
 
@@ -291,7 +301,7 @@ A code block whose language is `csv` (RFC 4180) or `tsv` MAY be displayed as a t
 
 ## 11. Grammar
 
-ABNF (RFC 5234). Context rules the grammar can't express (token position, emphasis boundaries, scope ownership) are normative in sections 3, 6, 8, 9 and 10.
+ABNF (RFC 5234). Context rules the grammar can't express (token position, emphasis boundaries, scope ownership, `+` numbering) are normative in sections 3, 5, 6, 8, 9 and 10.
 
 ```
 file          = *element
@@ -308,7 +318,8 @@ verbatim      = *char                      ; any line but the closing fence
 heading       = 1*6"#" SP inline
 item          = indent marker SP [taskbox (SP / EOL-AHEAD)] inline
 indent        = *(2SP)
-marker        = "-" / 1*DIGIT "."
+marker        = "-" / ordered-marker
+ordered-marker = "+" / 1*DIGIT "."         ; "+" = implicit number
 taskbox       = "[" (SP / "x" / "-") "]"
 row           = indent "|" cell *("|" cell) *WSP
                                            ; an empty last cell after a trailing "|" is dropped
@@ -363,9 +374,9 @@ Met with Bob about the *new* timeline. See [[projects/atlas-plan#risks|risk list
 and the [[https://example.com/brief|client brief]]. Whiteboard: [[img/atlas-wb.png]].
 
 ## Decisions @id:decisions
-1. Ship beta by end of Oct @due:2026-10-31
-2. Drop the _legacy_ importer
-3. Cap each import at `MAX_ROWS` rows
++ Ship beta by end of Oct @due:2026-10-31
++ Drop the _legacy_ importer
++ Cap each import at `MAX_ROWS` rows
 
 ## Estimate
 Expected load is $r = n / t$, with `n` taken from the import log:
@@ -387,12 +398,12 @@ grep -c import atlas.log   # @count here is not metadata
 ## Follow-ups @status:open
 - [ ] Send Bob revised plan @due:2026-09-30 @person:bob @id:send-plan
 - [ ] Book design review @urgent @person:[priya, sam]
-  - [x] Find a room
-  - [ ] Invite Priya
+  1. [x] Find a room
+  2. [ ] Invite Priya
 - [-] Chase old invoice
 ````
 
-The file has `area: [work]` and `created: [2026-09-26]`. "Atlas kickoff" has `project` and `person: [bob, priya]`; the paragraph below it adds nothing, since it holds no tokens. "Invite Priya" has no metadata at all: nothing is inherited from "Book design review". The "@count" inside the code block is not metadata. Each Milestones row is its own scope, so the Beta row has owner bob and can be linked as \[\[projects/atlas#beta\]\]. Other notes can link to `[[projects/atlas#decisions]]` or `[[projects/atlas#send-plan]]`.
+The file has `area: [work]` and `created: [2026-09-26]`. "Atlas kickoff" has `project` and `person: [bob, priya]`; the paragraph below it adds nothing, since it holds no tokens. The Decisions items are ordered and numbered 1 to 3 by position. "Invite Priya" has no metadata at all: nothing is inherited from "Book design review". The "@count" inside the code block is not metadata. Each Milestones row is its own scope, so the Beta row has owner bob and can be linked as \[\[projects/atlas#beta\]\]. Other notes can link to `[[projects/atlas#decisions]]` or `[[projects/atlas#send-plan]]`.
 
 ### 10.2 Grep reference
 
@@ -403,7 +414,7 @@ All commands use GNU grep and run from the notes root.
 grep -rnE '^#{1,6} ' .
 
 # Open tasks
-grep -rnE '^ *(-|[0-9]+\.) \[ \]' .
+grep -rnE '^ *([-+]|[0-9]+\.) \[ \]' .
 
 # A flag (tag)
 grep -rnE '(^|[[:space:]])@urgent([[:space:]:]|$)' .
