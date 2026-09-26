@@ -72,5 +72,7 @@ See `:help snot` for the full Lua API.
 
 ```sh
 luarocks test --local   # runs spec/ with busted via nlua
+# nix users should run busted in the devshell instead
+busted
 stylua --check .
 ```
