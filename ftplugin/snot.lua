@@ -10,4 +10,10 @@ vim.bo.path = cfg.directory:gsub("[, \\]", "\\%0") .. "," .. vim.o.path
 vim.bo.suffixesadd = cfg.extension
 vim.bo.includeexpr = [[substitute(v:fname, '#.*$', '', '')]]
 
+-- Highlighting comes from tree-sitter-snot; see :checkhealth snot.
+local ts = require("snot.treesitter").start()
+
 vim.b.undo_ftplugin = "setlocal path< suffixesadd< includeexpr<"
+if ts then
+  vim.b.undo_ftplugin = vim.b.undo_ftplugin .. " | lua vim.treesitter.stop()"
+end

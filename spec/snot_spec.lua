@@ -467,3 +467,18 @@ describe("backlinks", function()
     assert.is_nil(snot.config().picker)
   end)
 end)
+
+describe("treesitter", function()
+  after_each(function()
+    package.loaded["nvim-treesitter.parsers"] = nil
+  end)
+
+  it("registers the parsers with nvim-treesitter on TSUpdate", function()
+    local parsers = {}
+    package.loaded["nvim-treesitter.parsers"] = parsers
+    vim.api.nvim_exec_autocmds("User", { pattern = "TSUpdate" })
+    assert.are.equal("tree-sitter-snot", parsers.snot.install_info.location)
+    assert.are.same({ "snot_inline" }, parsers.snot.requires)
+    assert.are.equal("tree-sitter-snot-inline", parsers.snot_inline.install_info.location)
+  end)
+end)

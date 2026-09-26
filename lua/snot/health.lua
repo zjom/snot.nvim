@@ -48,6 +48,17 @@ function M.check()
   else
     health.warn("ripgrep (rg) not found; :Snot backlinks is unavailable")
   end
+  local ts = require("snot.treesitter")
+  for _, lang in ipairs({ "snot", "snot_inline" }) do
+    if ts.has_parser(lang) then
+      health.ok("tree-sitter parser found: " .. lang)
+    else
+      health.warn("tree-sitter parser not found: " .. lang .. "; notes have no highlighting", {
+        "With nvim-treesitter (main branch): :TSInstall snot",
+        "Or build it from https://github.com/zjom/tree-sitter-snot",
+      })
+    end
+  end
   local picker = cfg.picker
   if type(picker) == "function" then
     health.info("picker: custom function")

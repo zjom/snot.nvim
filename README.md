@@ -18,7 +18,7 @@ greppable.
 - New notes open pre-filled from a template and aren't written until you save.
 - Tags are `@flags` in any heading, list item, table row or the file itself; find where one is set in your picker of choice.
 - `[[path]]` links between notes, relative to the notes directory, with backlinks in your picker (needs [ripgrep](https://github.com/BurntSushi/ripgrep)).
-- Syntax highlighting, and `gf` to follow a link.
+- Tree-sitter highlighting via [tree-sitter-snot](https://github.com/zjom/tree-sitter-snot), and `gf` to follow a link.
 
 snot is opinionated: notes are always Simple Note Format. Only the file extension is configurable.
 
@@ -39,6 +39,15 @@ With lazy.nvim:
 ```
 
 No `setup()` call is needed, and the plugin loads lazily on its own.
+
+For highlighting, install the tree-sitter parsers. snot registers them with
+[nvim-treesitter](https://github.com/nvim-treesitter/nvim-treesitter) (main branch), so:
+
+```vim
+:TSInstall snot
+```
+
+installs `snot` and `snot_inline` along with their queries. snot starts tree-sitter in note buffers itself.
 
 ## Configuration
 

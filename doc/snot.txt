@@ -32,6 +32,11 @@ notes directory and has no extension, e.g. `[[20240102__my-idea]]` or
 `[[daily/20240102#standup|standup]]`. |:Snot| `backlinks` lists the notes
 linking to one (requires ripgrep). `gf` on a link opens the note.
 
+Notes are highlighted with tree-sitter, using the `snot` and `snot_inline`
+parsers from https://github.com/zjom/tree-sitter-snot. snot registers them
+with nvim-treesitter (main branch), so `:TSInstall snot` installs both along
+with their queries. Without the parsers, notes are not highlighted.
+
 Requires Neovim 0.11 or later. Run |:checkhealth| `snot` to verify your setup.
 
 ==============================================================================

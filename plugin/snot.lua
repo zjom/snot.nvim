@@ -20,6 +20,15 @@ vim.filetype.add({
   },
 })
 
+-- Let nvim-treesitter (main branch) install the parsers: `:TSInstall snot`.
+vim.api.nvim_create_autocmd("User", {
+  pattern = "TSUpdate",
+  group = vim.api.nvim_create_augroup("snot_treesitter", {}),
+  callback = function()
+    require("snot.treesitter").register()
+  end,
+})
+
 vim.api.nvim_create_user_command("Snot", function(o)
   require("snot.commands").run(o)
 end, {
