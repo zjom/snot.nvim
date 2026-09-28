@@ -1,4 +1,5 @@
---- snot.nvim: simple dated notes in Simple Note Format (NOTE_SPEC.md).
+--- snot.nvim: simple dated notes in Simple Note Format.
+--- Spec: https://github.com/zjom/snot/blob/main/NOTE_SPEC.md
 
 local M = {}
 
@@ -94,14 +95,33 @@ function M.find_backlinks(note)
   return require("snot.find").backlinks(note)
 end
 
---- Align the metadata ending headings and list items to the right margin,
---- 'textwidth' (79 if unset), in lines `first` to `last` of a note (default:
---- all of the current buffer).
+--- Format lines `first` to `last` of a note (default: all of the current
+--- buffer): align the metadata ending headings and list items to the right
+--- margin, 'textwidth' (79 if unset). With the language server, also trim
+--- trailing whitespace and blank lines at the end.
 ---@param bufnr? integer
 ---@param first? integer 1-based
 ---@param last? integer 1-based, inclusive
 function M.format(bufnr, first, last)
-  require("snot.align").buffer(bufnr, first, last)
+  if bufnr == nil or bufnr == 0 then
+    bufnr = vim.api.nvim_get_current_buf()
+  end
+  local client = require("snot.lsp").attached(bufnr)
+  if not client then
+    return require("snot.align").buffer(bufnr, first, last)
+  end
+  local range
+  if first then
+    local line = last or vim.api.nvim_buf_line_count(bufnr)
+    range = { start = { first, 0 }, ["end"] = { line, 0 } }
+  end
+  local tw = vim.bo[bufnr].textwidth
+  vim.lsp.buf.format({
+    bufnr = bufnr,
+    id = client.id,
+    range = range,
+    formatting_options = { width = tw > 0 and tw or nil },
+  })
 end
 
 return M

@@ -12,6 +12,7 @@
 ---@field templates table<string, string>
 ---@field picker? snot.PickerName | snot.PickerFn picker for tags and backlinks. Unset: first one installed
 ---@field format_on_save boolean align metadata in headings and list items when a note is saved
+---@field lsp boolean use the snot language server when `snot` is installed
 
 ---@alias snot.PickerName "telescope" | "fzf-lua" | "snacks" | "mini.pick" | "quickfix" | "select"
 
@@ -24,6 +25,7 @@
 ---@field templates? table<string, string>
 ---@field picker? snot.PickerName | snot.PickerFn
 ---@field format_on_save? boolean
+---@field lsp? boolean
 
 local M = {}
 
@@ -34,6 +36,7 @@ M.defaults = {
   extension = ".snot",
   open_cmd = "edit",
   format_on_save = true,
+  lsp = true,
   templates = {
     default = table.concat({
       "@created:${created}${tags}",
@@ -80,6 +83,7 @@ function M.validate(cfg)
       vim.validate("templates." .. tostring(name), template, "string")
     end
     vim.validate("format_on_save", cfg.format_on_save, "boolean")
+    vim.validate("lsp", cfg.lsp, "boolean")
     vim.validate("picker", cfg.picker, function(p)
       return type(p) == "function" or require("snot.picker").backends[p] ~= nil
     end, true, "a picker name or function")

@@ -30,7 +30,8 @@ tag the file, heading, list item or table row that owns the line.
 Notes link to each other with `[[path]]`, where the path is relative to the
 notes directory and has no extension, e.g. `[[20240102__my-idea]]` or
 `[[daily/20240102#standup|standup]]`. |:Snot| `backlinks` lists the notes
-linking to one (requires ripgrep). `gf` on a link opens the note.
+linking to one (requires the language server, |snot-lsp|, or ripgrep). `gf`
+on a link opens the note.
 
 Notes are highlighted with tree-sitter, using the `snot` and `snot_inline`
 parsers from https://github.com/zjom/tree-sitter-snot. snot registers them
@@ -56,7 +57,30 @@ The metadata ends at 'textwidth', or column 79 when it is 0. The gap is
 padded with tabs, up to 'tabstop', unless 'expandtab' is set. When the line
 is too long, one space is kept. Metadata in the middle of a line, and lines
 in code and math blocks, are left alone. Set `format_on_save = false` to turn
-this off; |:Snot| `format` still aligns on request.
+this off; |:Snot| `format` still aligns on request. With the language server,
+padding is always spaces, and trailing whitespace and blank lines at the end
+are trimmed too.
+
+                                                                    *snot-lsp*
+When `snot` (https://github.com/zjom/snot) is on your `PATH`, snot.nvim enables
+its language server for notes, with the notes directory as its root. It
+reports broken links and syntax errors as |vim.diagnostic|s, and answers the
+usual LSP requests:
+
+  |CTRL-]|, |vim.lsp.buf.definition()|   follow a link to its note or heading
+  `grr`, |vim.lsp.buf.references()|      on a link, heading or `@id`: the
+                                       links to it; on another `@key`: every
+                                       use of the key; elsewhere: the links to
+                                       the note
+  `gO`, |vim.lsp.buf.document_symbol()|  headings and `@id`s
+  |vim.lsp.buf.workspace_symbol()|       headings and `@id`s matching a query,
+                                       or `@key` and `@key:value` uses
+
+Formatting, |:Snot| `tag` and |:Snot| `backlinks` use it too, so they see
+unsaved buffers. Set `lsp = false` to read notes in Lua instead, or change the
+command with |vim.lsp.config()|: >lua
+    vim.lsp.config("snot", { cmd = { "/path/to/snot", "lsp" } })
+<
 
 Requires Neovim 0.11 or later. Run |:checkhealth| `snot` to verify your setup.
 
@@ -74,6 +98,7 @@ plugin is first used:
     extension = ".snot",     -- note file extension, including the dot
     open_cmd = "edit",       -- Ex command used to open notes
     format_on_save = true,   -- align metadata on save, see |snot-align|
+    lsp = true,              -- use the language server, see |snot-lsp|
     templates = { ... },     -- see |snot-templates|
     picker = nil,            -- picker for tags and backlinks, see below
   }
@@ -243,8 +268,8 @@ syntax, e.g. `:Snot new Kickoff @project:atlas` gives the heading
 ==============================================================================
 7. NOTE FORMAT                                                   *snot-format*
 
-Notes are written in Simple Note Format, specified in `NOTE_SPEC.md` in the
-plugin's repository. In brief:
+Notes are written in Simple Note Format, specified in `NOTE_SPEC.md` at
+https://github.com/zjom/snot. In brief:
 >
   @area:work @created:2024-01-02
 

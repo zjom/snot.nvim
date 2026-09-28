@@ -1,6 +1,6 @@
 # snot.nvim
 
-Simple dated notes for Neovim, written in the [Simple Note Format](NOTE_SPEC.md):
+Simple dated notes for Neovim, written in the [Simple Note Format](https://github.com/zjom/snot/blob/main/NOTE_SPEC.md):
 plain text where headings, lists, tasks, `@metadata` and `[[links]]` are all
 greppable.
 
@@ -17,7 +17,8 @@ greppable.
 - Titled notes: `~/notes/20240102__my-idea.snot`
 - New notes open pre-filled from a template and aren't written until you save.
 - Tags are `@flags` in any heading, list item, table row or the file itself; find where one is set in your picker of choice.
-- `[[path]]` links between notes, relative to the notes directory, with backlinks in your picker (needs [ripgrep](https://github.com/BurntSushi/ripgrep)).
+- `[[path]]` links between notes, relative to the notes directory, with backlinks in your picker.
+- With the [snot](https://github.com/zjom/snot) language server installed: diagnostics for broken links and syntax errors, go to a link's note or heading, references, and heading and `@key` symbols. Without it, backlinks need [ripgrep](https://github.com/BurntSushi/ripgrep).
 - Tree-sitter highlighting via [tree-sitter-snot](https://github.com/zjom/tree-sitter-snot), and `gf` to follow a link.
 
 snot is opinionated: notes are always Simple Note Format. Only the file extension is configurable.
@@ -59,9 +60,20 @@ margin, like tags in Vim help files:
 - [ ] Draft the plan                              @due:2024-01-09
 ```
 
-The margin is `'textwidth'` (79 when unset), and padding is tabs unless
-`'expandtab'` is set. Set `format_on_save = false` to turn this off; `:Snot format`
-still works.
+The margin is `'textwidth'` (79 when unset). With the language server, padding
+is spaces and trailing whitespace is trimmed too; without it, padding is tabs
+unless `'expandtab'` is set. Set `format_on_save = false` to turn this off;
+`:Snot format` still works.
+
+## Language server
+
+When the `snot` binary from [zjom/snot](https://github.com/zjom/snot) is on your
+`PATH`, snot.nvim enables it for notes (`lsp/snot.lua`), and uses it for
+formatting, tags and backlinks, which then include unsaved buffers. The usual
+LSP maps work: `grr` for references (to a note, a heading or `@id`, or a
+`@key`), `gO` for headings, `CTRL-]` to follow a link, and
+`vim.lsp.buf.workspace_symbol("@due")` to find a key. Set `lsp = false` to
+read notes in Lua instead.
 
 ## Configuration
 
@@ -75,6 +87,7 @@ vim.g.snot = {
   extension = ".snot",
   open_cmd = "edit", -- or "vsplit", "tabedit", "botright split", ...
   format_on_save = true, -- align metadata in headings and list items on save
+  lsp = true, -- use the snot language server when it's installed
   picker = nil, -- tag/backlinks picker: "telescope", "fzf-lua", "snacks", "mini.pick", "quickfix",
                 -- "select" or a function; unset uses the first one installed
 }

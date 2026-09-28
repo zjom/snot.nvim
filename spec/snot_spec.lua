@@ -601,3 +601,92 @@ describe("align", function()
     end)
   end)
 end)
+
+describe("lsp", function()
+  local lsp = require("snot.lsp")
+  local dir
+
+  --- Skip the test when the server isn't installed.
+  local function need_server()
+    if lsp.enabled() then
+      return true
+    end
+    pending("snot is not installed")
+    return false
+  end
+
+  before_each(function()
+    dir = vim.fn.tempname()
+    vim.fn.mkdir(dir, "p")
+    snot.setup({ directory = dir })
+  end)
+
+  after_each(function()
+    vim.cmd("silent! %bwipeout!")
+    vim.fn.delete(dir, "rf")
+    snot.setup()
+  end)
+
+  it("attaches to notes and reports broken links", function()
+    if not need_server() then
+      return
+    end
+    write(vim.fs.joinpath(dir, "a.snot"), { "see [[missing]]" })
+    vim.cmd.edit(vim.fs.joinpath(dir, "a.snot"))
+    assert(vim.wait(5000, function()
+      return #vim.diagnostic.get(0) > 0
+    end))
+    local d = vim.diagnostic.get(0)[1]
+    assert.are.same({ "L003", "snot", 0, 6 }, { d.code, d.source, d.lnum, d.col })
+  end)
+
+  it("formats with the server, which also trims trailing whitespace", function()
+    if not need_server() then
+      return
+    end
+    vim.cmd.edit(vim.fs.joinpath(dir, "a.snot"))
+    vim.bo.textwidth = 20
+    vim.api.nvim_buf_set_lines(0, 0, -1, false, { "# A @b  ", "text  ", "", "" })
+    snot.format()
+    assert.are.same({ "# A" .. (" "):rep(15) .. "@b", "text" }, vim.api.nvim_buf_get_lines(0, 0, -1, false))
+  end)
+
+  it("finds backlinks in unsaved buffers", function()
+    if not need_server() then
+      return
+    end
+    write(vim.fs.joinpath(dir, "b.snot"), { "# B" })
+    vim.cmd.edit(vim.fs.joinpath(dir, "a.snot"))
+    vim.api.nvim_buf_set_lines(0, 0, -1, false, { "unsaved [[b]]" })
+    local result
+    snot.backlinks("b", function(r)
+      result = r
+    end)
+    assert(vim.wait(5000, function()
+      return result ~= nil
+    end))
+    assert.are.same({ { path = vim.fs.joinpath(dir, "a.snot"), lnum = 1, col = 9, text = "unsaved [[b]]" } }, result)
+  end)
+
+  it("goes to the heading a link points at", function()
+    if not need_server() then
+      return
+    end
+    write(vim.fs.joinpath(dir, "b.snot"), { "# B", "", "## Two" })
+    write(vim.fs.joinpath(dir, "a.snot"), { "[[b#two]]" })
+    vim.cmd.edit(vim.fs.joinpath(dir, "a.snot"))
+    assert(lsp.attached(0))
+    vim.api.nvim_win_set_cursor(0, { 1, 3 })
+    vim.lsp.buf.definition()
+    assert(vim.wait(5000, function()
+      return vim.api.nvim_buf_get_name(0) == vim.fs.joinpath(dir, "b.snot")
+    end))
+    assert.are.same({ 3, 0 }, vim.api.nvim_win_get_cursor(0))
+  end)
+
+  it("can be turned off", function()
+    snot.setup({ directory = dir, lsp = false })
+    assert.is_false(lsp.enabled())
+    assert.is_nil(lsp.client())
+  end)
+end)

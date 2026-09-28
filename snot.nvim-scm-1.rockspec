@@ -9,7 +9,7 @@ source = {
 description = {
   summary = "Simple dated notes in Simple Note Format for Neovim",
   homepage = "https://github.com/zjom/snot.nvim",
-  license = "Unlicense",
+  license = "MIT",
 }
 
 dependencies = {
@@ -25,6 +25,7 @@ build = {
   copy_directories = {
     "doc",
     "ftplugin",
+    "lsp",
     "plugin",
     "queries",
   },

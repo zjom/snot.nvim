@@ -1,8 +1,10 @@
 --- Reading notes from the notes directory: listing files, their tags and the
---- links between them.
+--- links between them. Tags and links come from the snot language server when
+--- it is installed (lua/snot/lsp.lua), else from reading the notes in Lua.
 
 local config = require("snot.config")
 local format = require("snot.format")
+local lsp = require("snot.lsp")
 
 local M = {}
 
@@ -50,6 +52,26 @@ end
 ---@return boolean
 local function newest_first(a, b)
   return vim.fs.basename(a) > vim.fs.basename(b)
+end
+
+--- Sort locations newest note first, then in reading order.
+---@param locations snot.Location[]
+---@return snot.Location[]
+local function sort_locations(locations)
+  table.sort(locations, function(a, b)
+    if a.path ~= b.path then
+      local x, y = vim.fs.basename(a.path), vim.fs.basename(b.path)
+      if x ~= y then
+        return x > y
+      end
+      return a.path > b.path
+    end
+    if a.lnum ~= b.lnum then
+      return a.lnum < b.lnum
+    end
+    return a.col < b.col
+  end)
+  return locations
 end
 
 --- A note's link path (NOTE_SPEC.md, section 7.2): its path relative to the
@@ -155,6 +177,10 @@ end
 --- All tags used across notes, sorted.
 ---@return string[]
 function M.tags()
+  local tags = lsp.request("snot/tags")
+  if tags then
+    return tags
+  end
   local seen = {}
   for _, path in ipairs(M.list()) do
     for _, tag in ipairs(M.read_tags(path)) do
@@ -170,6 +196,14 @@ end
 ---@param tag string
 ---@return snot.Location[]
 function M.tag_locations(tag)
+  -- A tag is a flag, which has the value "true".
+  local symbols = lsp.request("workspace/symbol", { query = "@" .. tag .. ":true" })
+  if symbols then
+    local locations = vim.tbl_map(function(s)
+      return s.location
+    end, symbols)
+    return sort_locations(lsp.to_locations(locations))
+  end
   local out = {}
   for _, path in ipairs(M.list()) do
     for _, t in ipairs(tags_in(path)) do
@@ -216,13 +250,24 @@ local function links_to(files, target)
   return out
 end
 
---- Find links to a note, `[[path]]`, `[[path#anchor]]` or `[[path|label]]`, in
---- saved notes. Ripgrep finds candidate files in the background, then they are
---- parsed so that links in code and math don't count. Calls `on_done(locations)`
---- on the main loop, newest note first, or `on_done(nil, err)`.
+--- Find links to a note, `[[path]]`, `[[path#anchor]]` or `[[path|label]]`,
+--- from other notes. The language server knows unsaved buffers too; without
+--- it, ripgrep finds candidate files among saved notes in the background, then
+--- they are parsed so that links in code and math don't count. Calls
+--- `on_done(locations)` on the main loop, newest note first, or
+--- `on_done(nil, err)`.
 ---@param note string link path or file path of the linked note
 ---@param on_done fun(locations?: snot.Location[], err?: string)
 function M.backlinks(note, on_done)
+  local asked = lsp.request_async("snot/backlinks", { note = M.link_path(note) }, function(locations, err)
+    if not locations then
+      return on_done(nil, err)
+    end
+    on_done(sort_locations(lsp.to_locations(locations)))
+  end)
+  if asked then
+    return
+  end
   if vim.fn.executable("rg") ~= 1 then
     return on_done(nil, "ripgrep (rg) is required for backlinks")
   end

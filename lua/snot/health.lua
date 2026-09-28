@@ -42,9 +42,27 @@ function M.check()
     health.info("notes directory will be created on first use: " .. cfg.directory)
   end
 
+  health.start("snot: language server")
+  local lsp = require("snot.lsp")
+  local cmd = (vim.lsp.config.snot or {}).cmd
+  if not cfg.lsp then
+    health.info("off (`lsp = false`); reading notes in Lua")
+  elseif type(cmd) ~= "table" then
+    health.info("custom command; not checked")
+  elseif lsp.enabled() then
+    local version = vim.system({ cmd[1], "--version" }, { text = true }):wait()
+    health.ok(("%s: %s"):format(vim.fn.exepath(cmd[1]), vim.trim(version.stdout or "")))
+  else
+    health.warn(cmd[1] .. " not found; formatting, tags and backlinks fall back to Lua", {
+      "Install it from https://github.com/zjom/snot, e.g. `nix profile install github:zjom/snot`",
+    })
+  end
+
   health.start("snot: optional dependencies")
   if vim.fn.executable("rg") == 1 then
-    health.ok("ripgrep found (:Snot backlinks)")
+    health.ok("ripgrep found (:Snot backlinks without the language server)")
+  elseif lsp.enabled() then
+    health.info("ripgrep not found; not needed with the language server")
   else
     health.warn("ripgrep (rg) not found; :Snot backlinks is unavailable")
   end

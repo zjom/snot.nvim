@@ -20,6 +20,9 @@ vim.filetype.add({
   },
 })
 
+-- The language server attaches to notes when `snot` is installed (lsp/snot.lua).
+vim.lsp.enable("snot")
+
 -- Let nvim-treesitter (main branch) install the parsers: `:TSInstall snot`.
 vim.api.nvim_create_autocmd("User", {
   pattern = "TSUpdate",
