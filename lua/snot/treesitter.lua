@@ -32,13 +32,16 @@ end
 ---@param lang string
 ---@return boolean
 function M.has_parser(lang)
-  return (pcall(vim.treesitter.language.add, lang))
+  -- Since Nvim 0.11 language.add() returns nil for a missing parser instead of
+  -- throwing, so check the result as well as the pcall.
+  local ok, added = pcall(vim.treesitter.language.add, lang)
+  return ok and added == true
 end
 
 --- Highlight the current buffer with tree-sitter, if the parser is installed.
 ---@return boolean started
 function M.start()
-  return (pcall(vim.treesitter.start))
+  return M.has_parser("snot") and (pcall(vim.treesitter.start))
 end
 
 return M

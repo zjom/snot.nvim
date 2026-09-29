@@ -32,7 +32,8 @@ vim.api.nvim_create_autocmd("BufWritePre", {
   desc = "snot: align metadata",
 })
 
-vim.b.undo_ftplugin = "setlocal path< suffixesadd< includeexpr< conceallevel<" .. " | exe 'autocmd! snot_format * <buffer>'"
+vim.b.undo_ftplugin = "setlocal path< suffixesadd< includeexpr< conceallevel<"
+  .. " | exe 'autocmd! snot_format * <buffer>'"
 if ts then
   vim.b.undo_ftplugin = vim.b.undo_ftplugin .. " | lua vim.treesitter.stop()"
 end
