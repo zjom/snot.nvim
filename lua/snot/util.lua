@@ -131,12 +131,33 @@ local function place()
   return "split"
 end
 
---- Open `path` using the Ex command `cmd`, returning the buffer number. Without
---- `cmd`, reuse the closest note window, else split.
+--- The window in the current tab page showing `path`, preferring the current one.
+---@param path string
+---@return integer? win
+local function showing(path)
+  local full = vim.fs.normalize(vim.fn.fnamemodify(path, ":p"))
+  local wins = vim.api.nvim_tabpage_list_wins(0)
+  table.insert(wins, 1, vim.api.nvim_get_current_win())
+  for _, win in ipairs(wins) do
+    local name = vim.api.nvim_buf_get_name(vim.api.nvim_win_get_buf(win))
+    if name ~= "" and vim.fs.normalize(vim.fn.fnamemodify(name, ":p")) == full then
+      return win
+    end
+  end
+end
+
+--- Open `path` using the Ex command `cmd`, returning the buffer number. If a
+--- window in the tab page already shows it, go there instead. Without `cmd`,
+--- reuse the closest note window, else split.
 ---@param path string
 ---@param cmd? string
 ---@return integer? bufnr, string? err
 function M.open(path, cmd)
+  local win = showing(path)
+  if win then
+    vim.api.nvim_set_current_win(win)
+    return vim.api.nvim_win_get_buf(win)
+  end
   cmd = cmd or place()
   local ok, err = pcall(vim.api.nvim_command, cmd .. " " .. vim.fn.fnameescape(path))
   if not ok then
