@@ -1,0 +1,17 @@
+#!/bin/sh
+# Check formatting of staged Lua files with StyLua.
+# Enable with: git config core.hooksPath .githooks
+
+files=$(git diff --cached --name-only --diff-filter=ACMR -- '*.lua')
+[ -z "$files" ] && exit 0
+
+if ! command -v stylua >/dev/null 2>&1; then
+  echo "pre-commit: stylua not found (it's in the nix dev shell)" >&2
+  exit 1
+fi
+
+# shellcheck disable=SC2086
+if ! stylua --check $files; then
+  echo "pre-commit: run 'stylua .' and re-stage" >&2
+  exit 1
+fi
