@@ -339,6 +339,70 @@ describe(":Snot", function()
   end)
 end)
 
+describe("window placement", function()
+  local dir
+
+  before_each(function()
+    dir = vim.fn.tempname()
+    vim.fn.mkdir(dir, "p")
+    snot.setup({ directory = dir })
+  end)
+
+  after_each(function()
+    vim.cmd("silent! %bwipeout!")
+    vim.fn.delete(dir, "rf")
+  end)
+
+  local function win_count()
+    return #vim.api.nvim_tabpage_list_wins(0)
+  end
+
+  it("opens in the empty start buffer's window", function()
+    local win = vim.api.nvim_get_current_win()
+    snot.goto_daily({ date = "20240101" })
+    assert.are.equal(win, vim.api.nvim_get_current_win())
+    assert.are.equal(1, win_count())
+  end)
+
+  it("reuses the current note window", function()
+    snot.goto_daily({ date = "20240101" })
+    local win = vim.api.nvim_get_current_win()
+    vim.cmd("Snot daily 20240102")
+    assert.are.equal(win, vim.api.nvim_get_current_win())
+    assert.are.equal(1, win_count())
+    assert.is_true(vim.endswith(vim.api.nvim_buf_get_name(0), "20240102.snot"))
+  end)
+
+  it("reuses a note window from another window", function()
+    snot.goto_daily({ date = "20240101" })
+    local note_win = vim.api.nvim_get_current_win()
+    vim.cmd.split(vim.fn.tempname() .. ".txt")
+    vim.cmd("Snot daily 20240102")
+    assert.are.equal(note_win, vim.api.nvim_get_current_win())
+    assert.are.equal(2, win_count())
+  end)
+
+  it("splits when no note window can be reused", function()
+    vim.cmd.edit(vim.fn.tempname() .. ".txt")
+    vim.cmd("Snot daily 20240101")
+    assert.are.equal(2, win_count())
+
+    vim.wo.winfixbuf = true
+    vim.cmd.wincmd("p")
+    vim.cmd("Snot daily 20240102")
+    assert.are.equal(3, win_count())
+  end)
+
+  it("uses open_cmd when given", function()
+    snot.goto_daily({ date = "20240101" })
+    snot.goto_daily({ date = "20240102", open_cmd = "vsplit" })
+    assert.are.equal(2, win_count())
+    snot.setup({ directory = dir, open_cmd = "tabedit" })
+    snot.open_dir()
+    assert.are.equal(2, #vim.api.nvim_list_tabpages())
+  end)
+end)
+
 describe("backlinks", function()
   local dir
 

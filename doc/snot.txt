@@ -96,13 +96,20 @@ plugin is first used:
     daily_directory = nil,   -- folder for daily notes, see below
     date_format = "%Y%m%d",  -- strftime format for dates in file names
     extension = ".snot",     -- note file extension, including the dot
-    open_cmd = "edit",       -- Ex command used to open notes
+    open_cmd = nil,          -- Ex command used to open notes, see below
     format_on_save = true,   -- align metadata on save, see |snot-align|
     lsp = true,              -- use the language server, see |snot-lsp|
     templates = { ... },     -- see |snot-templates|
     picker = nil,            -- picker for tags and backlinks, see below
   }
 <
+                                                              *snot-open_cmd*
+`open_cmd` is the Ex command used to open notes, e.g. `"edit"`, `"vsplit"`
+or `"tabedit"`. When unset, snot behaves like |:Man|: it reuses the current
+window if it shows a note (or an empty buffer), else the first window in the
+tab page that shows a note, and otherwise opens a split. It skips windows
+with 'winfixbuf' set, and windows with unsaved changes when 'nohidden'.
+
 `daily_directory` puts daily notes in their own folder inside `directory`,
 e.g. `"daily"` means `~/notes/daily`. It must be a relative path without
 `..`, since links are relative to `directory`. When unset, daily notes go in
@@ -155,8 +162,8 @@ Invalid options are reported and the defaults are used instead.
                         current note. Uses the |snot-picker|. Only saved
                         notes are searched.
 
-`new`, `daily` and `dir` accept window modifiers, which open the note in a
-split instead of using `open_cmd`:
+`new`, `daily` and `dir` accept window modifiers, which always open a new
+split instead of using |snot-open_cmd|:
 >vim
   :vertical Snot daily yesterday
   :tab Snot new Meeting notes
@@ -196,14 +203,15 @@ create_note({opts})                                       *snot.create_note()*
       - template  (string) template name, default `"default"`
       - is_daily  (boolean) create a daily note
       - date      (string) date in `date_format`, default today
-      - cmd       (string) overrides `open_cmd` for this call
+      - open_cmd  (string) overrides |snot-open_cmd| for this call
 
 goto_daily({opts})                                         *snot.goto_daily()*
     Open the daily note for `opts.date` (default today). {opts} may contain
-    `date`, `content` and `cmd`. `create_daily()` is an alias.
+    `date`, `content` and `open_cmd`. `create_daily()` is an alias.
 
 open_dir({opts})                                             *snot.open_dir()*
-    Open the notes directory, creating it if needed. {opts} may contain `cmd`.
+    Open the notes directory, creating it if needed. {opts} may contain
+    `open_cmd`.
 
 directory()                                                 *snot.directory()*
     Absolute path of the notes directory.

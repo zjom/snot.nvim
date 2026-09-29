@@ -33,24 +33,24 @@ end
 ---@class snot.DailyOpts
 ---@field content? string
 ---@field date?    string date in config.date_format; defaults to today
----@field cmd?     string overrides config.open_cmd for this call
+---@field open_cmd? string overrides config.open_cmd for this call
 
 --- Open the daily note for `opts.date` (default: today), pre-filling a new buffer if it doesn't exist.
 ---@param opts? snot.DailyOpts
 ---@return integer? bufnr, string? path_or_err
 function M.goto_daily(opts)
   opts = opts or {}
-  return M.create_note({ is_daily = true, content = opts.content, date = opts.date, cmd = opts.cmd })
+  return M.create_note({ is_daily = true, content = opts.content, date = opts.date, open_cmd = opts.open_cmd })
 end
 
 --- Alias of |goto_daily()|, kept for compatibility.
 M.create_daily = M.goto_daily
 
 --- Open the notes directory, creating it if needed.
----@param opts? { cmd?: string }
+---@param opts? { open_cmd?: string }
 ---@return integer? bufnr, string? err
 function M.open_dir(opts)
-  return require("snot.note").open_dir((opts or {}).cmd)
+  return require("snot.note").open_dir((opts or {}).open_cmd)
 end
 
 --- All tags used across notes, sorted.

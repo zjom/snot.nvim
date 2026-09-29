@@ -24,11 +24,11 @@ end
 
 --- Create a note, prompting for a title when none is given.
 ---@param title? string
----@param cmd? string
-function M.new(title, cmd)
+---@param open_cmd? string
+function M.new(title, open_cmd)
   local function go(t)
     if t and vim.trim(t) ~= "" then
-      require("snot").create_note({ title = vim.trim(t), cmd = cmd })
+      require("snot").create_note({ title = vim.trim(t), open_cmd = open_cmd })
     end
   end
   if title and title ~= "" then
@@ -55,7 +55,7 @@ local subcommands = {
     desc = "open a daily note (today, yesterday, tomorrow, -N, +N or a date)",
     impl = function(args, o)
       local date = require("snot.util").resolve_date(args, require("snot.config").get().date_format)
-      require("snot").goto_daily({ date = date, cmd = cmd_from_mods(o) })
+      require("snot").goto_daily({ date = date, open_cmd = cmd_from_mods(o) })
     end,
     complete = function(lead)
       local items = vim.list_extend({ "today", "yesterday", "tomorrow" }, require("snot.store").daily_dates())
@@ -65,7 +65,7 @@ local subcommands = {
   dir = {
     desc = "open the notes directory",
     impl = function(_, o)
-      require("snot").open_dir({ cmd = cmd_from_mods(o) })
+      require("snot").open_dir({ open_cmd = cmd_from_mods(o) })
     end,
   },
   tag = {

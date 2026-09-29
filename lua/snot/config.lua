@@ -8,7 +8,7 @@
 ---@field daily_directory? string folder for daily notes, relative to `directory`. Unset: `directory`
 ---@field date_format string strftime format used for daily notes and note prefixes
 ---@field extension string   file extension for notes, including the dot
----@field open_cmd string    Ex command used to open notes, e.g. "edit", "vsplit", "tabedit", "botright split"
+---@field open_cmd? string   Ex command used to open notes, e.g. "edit", "vsplit", "tabedit". Unset: reuse the closest note window, else split
 ---@field templates table<string, string>
 ---@field picker? snot.PickerName | snot.PickerFn picker for tags and backlinks. Unset: first one installed
 ---@field format_on_save boolean align metadata in headings and list items when a note is saved
@@ -34,7 +34,6 @@ M.defaults = {
   directory = "~/notes",
   date_format = "%Y%m%d",
   extension = ".snot",
-  open_cmd = "edit",
   format_on_save = true,
   lsp = true,
   templates = {
@@ -77,7 +76,7 @@ function M.validate(cfg)
     vim.validate("extension", cfg.extension, function(e)
       return type(e) == "string" and e:match("^%.[^./\\]+$") ~= nil
     end, 'a file extension including the dot, e.g. ".snot"')
-    vim.validate("open_cmd", cfg.open_cmd, "string")
+    vim.validate("open_cmd", cfg.open_cmd, "string", true)
     vim.validate("templates", cfg.templates, "table")
     for name, template in pairs(cfg.templates) do
       vim.validate("templates." .. tostring(name), template, "string")

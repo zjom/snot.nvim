@@ -85,11 +85,59 @@ function M.fail(msg)
   return nil, msg
 end
 
---- Open `path` in a window using the Ex command `cmd`, returning the buffer number.
+--- Whether `win` can be switched to another buffer with :edit.
+---@param win integer
+---@return boolean
+local function reusable(win)
+  if vim.api.nvim_win_get_config(win).relative ~= "" or vim.wo[win].winfixbuf or vim.wo[win].previewwindow then
+    return false
+  end
+  return vim.o.hidden or not vim.bo[vim.api.nvim_win_get_buf(win)].modified
+end
+
+---@param win integer
+---@return boolean
+local function shows_note(win)
+  return vim.bo[vim.api.nvim_win_get_buf(win)].filetype == "snot"
+end
+
+--- Whether `win` shows the empty buffer Neovim starts with.
+---@param win integer
+---@return boolean
+local function shows_empty(win)
+  local buf = vim.api.nvim_win_get_buf(win)
+  return vim.api.nvim_buf_get_name(buf) == ""
+    and vim.bo[buf].buftype == ""
+    and not vim.bo[buf].modified
+    and vim.api.nvim_buf_line_count(buf) == 1
+    and vim.api.nvim_buf_get_lines(buf, 0, 1, false)[1] == ""
+end
+
+--- Choose where to open a note, like |man.lua|: go to the current window if it
+--- shows a note (or an empty buffer), else the first note window in the tab
+--- page, returning "edit"; with neither, return "split".
+---@return string cmd
+local function place()
+  local cur = vim.api.nvim_get_current_win()
+  if reusable(cur) and (shows_note(cur) or shows_empty(cur)) then
+    return "edit"
+  end
+  for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+    if shows_note(win) and reusable(win) then
+      vim.api.nvim_set_current_win(win)
+      return "edit"
+    end
+  end
+  return "split"
+end
+
+--- Open `path` using the Ex command `cmd`, returning the buffer number. Without
+--- `cmd`, reuse the closest note window, else split.
 ---@param path string
----@param cmd string
+---@param cmd? string
 ---@return integer? bufnr, string? err
 function M.open(path, cmd)
+  cmd = cmd or place()
   local ok, err = pcall(vim.api.nvim_command, cmd .. " " .. vim.fn.fnameescape(path))
   if not ok then
     return nil, tostring(err)

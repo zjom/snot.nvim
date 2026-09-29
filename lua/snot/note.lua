@@ -13,14 +13,14 @@ local M = {}
 ---@field template? string            name of a template in config.templates
 ---@field is_daily? boolean
 ---@field date?     string            date in config.date_format; defaults to today
----@field cmd?      string            overrides config.open_cmd for this call
+---@field open_cmd? string            overrides config.open_cmd for this call
 
 ---@param opts? snot.CreateNoteOpts
 ---@return integer? bufnr, string? path_or_err
 function M.create(opts)
   opts = opts or {}
   local cfg = config.get()
-  local cmd = opts.cmd or cfg.open_cmd
+  local open_cmd = opts.open_cmd or cfg.open_cmd
 
   local template_name = opts.template or "default"
   local template = cfg.templates[template_name]
@@ -49,7 +49,7 @@ function M.create(opts)
 
   if store.exists(path) then
     if opts.is_daily then
-      local buf, oerr = util.open(path, cmd)
+      local buf, oerr = util.open(path, open_cmd)
       if not buf then
         return util.fail(("could not open %s: %s"):format(path, oerr))
       end
@@ -70,7 +70,7 @@ function M.create(opts)
   })
   local lines = vim.split(text, "\n", { plain = true })
 
-  local buf, oerr = util.open(path, cmd)
+  local buf, oerr = util.open(path, open_cmd)
   if not buf then
     return util.fail(("could not open %s: %s"):format(path, oerr))
   end
@@ -85,15 +85,15 @@ function M.create(opts)
 end
 
 --- Open the notes directory, creating it if needed.
----@param cmd? string overrides config.open_cmd for this call
+---@param open_cmd? string overrides config.open_cmd for this call
 ---@return integer? bufnr, string? err
-function M.open_dir(cmd)
+function M.open_dir(open_cmd)
   local cfg = config.get()
   local ok, err = util.ensure_dir(cfg.directory)
   if not ok then
     return util.fail(("could not create %s: %s"):format(cfg.directory, err))
   end
-  local buf, oerr = util.open(cfg.directory, cmd or cfg.open_cmd)
+  local buf, oerr = util.open(cfg.directory, open_cmd or cfg.open_cmd)
   if not buf then
     return util.fail(oerr --[[@as string]])
   end
